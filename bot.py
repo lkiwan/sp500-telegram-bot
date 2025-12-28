@@ -564,8 +564,6 @@ def post_signal_check():
 • MACD: {'Bullish' if macd_hist > 0 else 'Bearish'}
 • VIX: {economic_data.get('vix', 20):.1f}
 
-⚠️ <i>Educational content only. Not financial advice.</i>
-
 {get_hashtags('signal')}
 """
         return send_telegram(msg)
@@ -1073,8 +1071,6 @@ I'm seeing something really good here, traders!
 {EMOJI['fire']} <b>Multiple factors are aligning perfectly!</b>
 
 This is exactly the kind of setup I look for. Strong technicals, good momentum, and the trend is on our side.
-
-⚠️ <i>Educational content only. Not financial advice.</i>
 
 #SP500 #TradingSignals #HighConfidence
 """
