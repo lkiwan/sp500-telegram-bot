@@ -1,0 +1,18 @@
+# S&P 500 Professional Telegram Bot
+# Dependencies
+
+# Core
+requests>=2.31.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data Sources
+yfinance>=0.2.30
+
+# Chart Generation
+matplotlib>=3.8.0
+mplfinance>=0.12.10b0
+Pillow>=10.0.0
+
+# Utilities
+pytz>=2024.1

@@ -1,34 +1,59 @@
-name: S&P 500 Telegram Bot
+name: S&P 500 Professional Bot
 
 on:
   schedule:
-    # ===== MARKET HOURS (Mon-Fri) =====
+    # ===== DAILY SCHEDULE (Mon-Fri, UTC times) =====
+
+    # Morning Briefing - 13:00 UTC (8:00 AM ET)
+    - cron: '0 13 * * 1-5'
+
     # Market Open - 14:30 UTC (9:30 AM ET)
     - cron: '30 14 * * 1-5'
+
+    # Mid-Morning Sentiment - 15:30 UTC (10:30 AM ET)
+    - cron: '30 15 * * 1-5'
+
+    # Late Morning Signal Check - 16:00 UTC (11:00 AM ET)
+    - cron: '0 16 * * 1-5'
+
+    # Lunch Technical Analysis - 17:00 UTC (12:00 PM ET)
+    - cron: '0 17 * * 1-5'
+
+    # Afternoon Economic - 18:30 UTC (1:30 PM ET)
+    - cron: '30 18 * * 1-5'
+
+    # Afternoon Signal Check - 19:00 UTC (2:00 PM ET)
+    - cron: '0 19 * * 1-5'
+
+    # Pre-Close Signal Check - 20:00 UTC (3:00 PM ET)
+    - cron: '0 20 * * 1-5'
+
+    # Pre-Close Summary - 20:30 UTC (3:30 PM ET)
+    - cron: '30 20 * * 1-5'
+
     # Market Close - 21:00 UTC (4:00 PM ET)
     - cron: '0 21 * * 1-5'
 
-    # ===== SIGNAL CHECKS - Every 15 min during market hours =====
-    - cron: '*/15 14-21 * * 1-5'
-
-    # ===== FUNDAMENTAL ANALYSIS POSTS =====
-    # Morning Economic Indicators - 14:00 UTC (9:00 AM ET)
-    - cron: '0 14 * * 1-5'
-    # Mid-morning Sentiment - 15:30 UTC (10:30 AM ET)
-    - cron: '30 15 * * 1-5'
-    # Lunch Technical Analysis - 17:00 UTC (12:00 PM ET)
-    - cron: '0 17 * * 1-5'
-    # Afternoon Events - 18:30 UTC (1:30 PM ET)
-    - cron: '30 18 * * 1-5'
-    # Pre-close Summary - 20:30 UTC (3:30 PM ET)
-    - cron: '30 20 * * 1-5'
+    # Weekly Report - Friday 22:00 UTC (5:00 PM ET)
+    - cron: '0 22 * * 5'
 
   workflow_dispatch:
     inputs:
       command:
-        description: 'Command: predict, open, close, economic, sentiment, events, technical, summary, test'
+        description: 'Command to run'
         required: true
         default: 'test'
+        type: choice
+        options:
+          - test
+          - morning
+          - open
+          - sentiment
+          - signal
+          - technical
+          - economic
+          - close
+          - weekly
 
 jobs:
   run-bot:
@@ -42,10 +67,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install requests pandas numpy yfinance
+          pip install -r requirements.txt
+
+      - name: Download signal data
+        uses: actions/download-artifact@v4
+        with:
+          name: signal-data
+          path: data/
+        continue-on-error: true
+
+      - name: Create data directory
+        run: mkdir -p data
 
       - name: Determine command
         id: command
@@ -55,35 +91,48 @@ jobs:
           else
             HOUR=$(date -u +%H)
             MIN=$(date -u +%M)
+            DOW=$(date -u +%u)
 
-            # Market Open (14:30)
-            if [ "$HOUR" == "14" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
+            # Friday 22:00 - Weekly Report
+            if [ "$DOW" == "5" ] && [ "$HOUR" == "22" ]; then
+              echo "cmd=weekly" >> $GITHUB_OUTPUT
+            # 13:00 - Morning Briefing
+            elif [ "$HOUR" == "13" ] && [ "$MIN" -le "10" ]; then
+              echo "cmd=morning" >> $GITHUB_OUTPUT
+            # 14:30 - Market Open
+            elif [ "$HOUR" == "14" ] && [ "$MIN" -ge "25" ] && [ "$MIN" -le "40" ]; then
               echo "cmd=open" >> $GITHUB_OUTPUT
-            # Market Close (21:00)
-            elif [ "$HOUR" == "21" ] && [ "$MIN" -le "5" ]; then
-              echo "cmd=close" >> $GITHUB_OUTPUT
-            # Morning Economic Indicators (14:00)
-            elif [ "$HOUR" == "14" ] && [ "$MIN" -le "5" ]; then
-              echo "cmd=economic" >> $GITHUB_OUTPUT
-            # Mid-morning Sentiment (15:30)
-            elif [ "$HOUR" == "15" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
+            # 15:30 - Sentiment
+            elif [ "$HOUR" == "15" ] && [ "$MIN" -ge "25" ] && [ "$MIN" -le "40" ]; then
               echo "cmd=sentiment" >> $GITHUB_OUTPUT
-            # Lunch Technical (17:00)
-            elif [ "$HOUR" == "17" ] && [ "$MIN" -le "5" ]; then
+            # 16:00 - Signal Check
+            elif [ "$HOUR" == "16" ] && [ "$MIN" -le "10" ]; then
+              echo "cmd=signal" >> $GITHUB_OUTPUT
+            # 17:00 - Technical Analysis
+            elif [ "$HOUR" == "17" ] && [ "$MIN" -le "10" ]; then
               echo "cmd=technical" >> $GITHUB_OUTPUT
-            # Afternoon Events (18:30)
-            elif [ "$HOUR" == "18" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
-              echo "cmd=events" >> $GITHUB_OUTPUT
-            # Pre-close Summary (20:30)
-            elif [ "$HOUR" == "20" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
-              echo "cmd=summary" >> $GITHUB_OUTPUT
-            # Default: Signal check
+            # 18:30 - Economic
+            elif [ "$HOUR" == "18" ] && [ "$MIN" -ge "25" ] && [ "$MIN" -le "40" ]; then
+              echo "cmd=economic" >> $GITHUB_OUTPUT
+            # 19:00 - Signal Check
+            elif [ "$HOUR" == "19" ] && [ "$MIN" -le "10" ]; then
+              echo "cmd=signal" >> $GITHUB_OUTPUT
+            # 20:00 - Signal Check
+            elif [ "$HOUR" == "20" ] && [ "$MIN" -le "10" ]; then
+              echo "cmd=signal" >> $GITHUB_OUTPUT
+            # 20:30 - Pre-close (use sentiment)
+            elif [ "$HOUR" == "20" ] && [ "$MIN" -ge "25" ] && [ "$MIN" -le "40" ]; then
+              echo "cmd=sentiment" >> $GITHUB_OUTPUT
+            # 21:00 - Market Close
+            elif [ "$HOUR" == "21" ] && [ "$MIN" -le "10" ]; then
+              echo "cmd=close" >> $GITHUB_OUTPUT
+            # Default - Signal check
             else
-              echo "cmd=predict" >> $GITHUB_OUTPUT
+              echo "cmd=signal" >> $GITHUB_OUTPUT
             fi
           fi
 
-      - name: Run Command
+      - name: Run Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -91,36 +140,14 @@ jobs:
         run: |
           CMD="${{ steps.command.outputs.cmd }}"
           echo "Running command: $CMD"
+          python bot.py $CMD
 
-          case $CMD in
-            open)
-              python bot.py open
-              ;;
-            close)
-              python bot.py close
-              ;;
-            economic)
-              python fundamental_analysis.py economic
-              ;;
-            sentiment)
-              python fundamental_analysis.py sentiment
-              ;;
-            technical)
-              python fundamental_analysis.py technical
-              ;;
-            events)
-              python fundamental_analysis.py events
-              ;;
-            summary)
-              python fundamental_analysis.py summary
-              ;;
-            predict)
-              python predictor.py predict
-              ;;
-            test)
-              python predictor.py test
-              ;;
-            *)
-              echo "Unknown command: $CMD"
-              ;;
-          esac
+      - name: Save signal data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-data
+          path: data/signals.json
+          retention-days: 90
+          overwrite: true
+          if-no-files-found: ignore
