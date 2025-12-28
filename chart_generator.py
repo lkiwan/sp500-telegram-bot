@@ -110,10 +110,18 @@ class ChartGenerator:
         prev_price = df['close'].iloc[-2] if len(df) > 1 else current_price
         change_pct = ((current_price - prev_price) / prev_price) * 100
         price_color = COLORS['candle_up'] if change_pct >= 0 else COLORS['candle_down']
+        trend_arrow = '▲' if change_pct >= 0 else '▼'
 
-        ax_price.text(0.01, 0.97, f'${current_price:,.2f} ({change_pct:+.2f}%)',
+        ax_price.text(0.01, 0.97, f'{trend_arrow} ${current_price:,.2f} ({change_pct:+.2f}%)',
                      transform=ax_price.transAxes, fontsize=12, fontweight='bold',
                      color=price_color, verticalalignment='top')
+
+        # Draw current price horizontal line
+        ax_price.axhline(y=current_price, color=price_color, linewidth=1,
+                        linestyle='--', alpha=0.5)
+
+        # Draw support/resistance levels
+        self._draw_support_resistance(ax_price, df)
 
         # Add legend for price panel
         legend_elements = []
@@ -298,6 +306,24 @@ class ChartGenerator:
 
         ax.bar(x, df['volume'], color=colors, alpha=0.7, width=0.7)
         ax.set_xlim(-1, len(df))
+
+    def _draw_support_resistance(self, ax, df: pd.DataFrame):
+        """Draw support and resistance levels."""
+        # Get recent highs and lows for support/resistance
+        recent_high = df['high'].tail(20).max()
+        recent_low = df['low'].tail(20).min()
+
+        # Draw resistance level
+        ax.axhline(y=recent_high, color=COLORS['resistance'], linewidth=1,
+                  linestyle=':', alpha=0.6)
+        ax.text(len(df) + 0.5, recent_high, f'R ${recent_high:,.0f}',
+               fontsize=8, color=COLORS['resistance'], va='center')
+
+        # Draw support level
+        ax.axhline(y=recent_low, color=COLORS['support'], linewidth=1,
+                  linestyle=':', alpha=0.6)
+        ax.text(len(df) + 0.5, recent_low, f'S ${recent_low:,.0f}',
+               fontsize=8, color=COLORS['support'], va='center')
 
     def _draw_rsi(self, ax, df: pd.DataFrame):
         """Draw RSI indicator - CLEAN VERSION."""
