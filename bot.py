@@ -936,31 +936,37 @@ def send_telegram_photo_url(photo_url: str, caption: str = "") -> bool:
 
 
 def post_news():
-    """Post market news with image."""
+    """Post market news with image and emojis."""
     print("Posting market news...")
 
     news_items = news.get_market_news(limit=5)
 
     if not news_items:
-        return send_telegram("📰 <b>News</b>\n\nNo news available.\n\n#SP500")
+        return send_telegram("📰 <b>News</b>\n\n❌ No news available.\n\n#SP500 #News")
 
     # Get first news item with image
     main_news = news_items[0]
     image_url = main_news.get('image', '')
 
-    # Build simple news list
+    # News emojis
+    news_emojis = ['📌', '📍', '🔹', '🔸', '💡']
+
+    # Build news list with emojis
     news_lines = []
-    for i, item in enumerate(news_items[:4], 1):
-        headline = item.get('headline', '')[:80]
+    for i, item in enumerate(news_items[:4]):
+        headline = item.get('headline', '')[:70]
         source = item.get('source', '')
-        news_lines.append(f"{i}. {headline}\n   — {source}")
+        emoji = news_emojis[i] if i < len(news_emojis) else '•'
+        news_lines.append(f"{emoji} {headline}\n     <i>— {source}</i>")
 
     caption = f"""
-📰 <b>Market News</b>
+📰 <b>MARKET NEWS</b> 🗞️
 
 {chr(10).join(news_lines)}
 
-#SP500 #News
+🔔 Stay informed!
+
+#SP500 #News #StockMarket #Trading #MarketNews #WallStreet #Finance #Investing
 """
 
     # Try to send with image

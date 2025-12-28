@@ -1,216 +1,29 @@
 {
-  "signals": [
-    {
-      "id": "SIG202512281900001",
-      "timestamp": "2025-12-28T19:00:00",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 5900.0,
-      "take_profit": 5910.0,
-      "stop_loss": 5880.0,
-      "confidence": 65.0,
-      "status": "tp_hit",
-      "exit_price": 5910.0,
-      "exit_timestamp": "2025-12-28T19:22:01.173937",
-      "pnl_pct": 0.1694915254237288,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512281935400002",
-      "timestamp": "2025-12-28T19:35:40.264465",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6985.3794609375,
-      "stop_loss": 6895.290241699218,
-      "confidence": 55.00000000000001,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512281957060003",
-      "timestamp": "2025-12-28T19:57:06.905218",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6999.2393408203125,
-      "stop_loss": 6964.589641113281,
-      "confidence": 75.59520721435547,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512282019150004",
-      "timestamp": "2025-12-28T20:19:15.611867",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6999.2393408203125,
-      "stop_loss": 6964.589641113281,
-      "confidence": 75.59520721435547,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512282022200005",
-      "timestamp": "2025-12-28T20:22:20.542621",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6999.2393408203125,
-      "stop_loss": 6895.290241699218,
-      "confidence": 75.59520721435547,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512282140570006",
-      "timestamp": "2025-12-28T21:40:57.115781",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6999.2393408203125,
-      "stop_loss": 6895.290241699218,
-      "confidence": 75.59520721435547,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512282049320007",
-      "timestamp": "2025-12-28T20:49:32.975094",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6999.2393408203125,
-      "stop_loss": 6895.290241699218,
-      "confidence": 75.59520721435547,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    },
-    {
-      "id": "SIG202512282056380008",
-      "timestamp": "2025-12-28T20:56:38.993309",
-      "direction": "LONG",
-      "ticker": "SPY",
-      "entry_price": 6929.93994140625,
-      "take_profit": 6999.2393408203125,
-      "stop_loss": 6895.290241699218,
-      "confidence": 75.59520721435547,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
-      "notes": ""
-    }
-  ],
+  "signals": [],
   "portfolio": {
     "initial_capital": 1000,
-    "current_value": 1000.0847457627119,
-    "cash": 1000.0847457627119,
-    "positions": [
-      {
-        "signal_id": "SIG202512281935400002",
-        "entry_value": 200.0169491525424,
-        "shares": 0.02886272476294422,
-        "direction": "LONG",
-        "lot_size": 0.2
-      },
-      {
-        "signal_id": "SIG202512281957060003",
-        "entry_value": 600.0508474576271,
-        "shares": 0.08658817428883266,
-        "direction": "LONG",
-        "lot_size": 0.6
-      },
-      {
-        "signal_id": "SIG202512282019150004",
-        "entry_value": 600.0508474576271,
-        "shares": 0.08658817428883266,
-        "direction": "LONG",
-        "lot_size": 0.6
-      },
-      {
-        "signal_id": "SIG202512282022200005",
-        "entry_value": 600.0508474576271,
-        "shares": 0.08658817428883266,
-        "direction": "LONG",
-        "lot_size": 0.6
-      },
-      {
-        "signal_id": "SIG202512282140570006",
-        "entry_value": 600.0508474576271,
-        "shares": 0.08658817428883266,
-        "direction": "LONG",
-        "lot_size": 0.6
-      },
-      {
-        "signal_id": "SIG202512282049320007",
-        "entry_value": 600.0508474576271,
-        "shares": 0.08658817428883266,
-        "direction": "LONG",
-        "lot_size": 0.6
-      },
-      {
-        "signal_id": "SIG202512282056380008",
-        "entry_value": 600.0508474576271,
-        "shares": 0.08658817428883266,
-        "direction": "LONG",
-        "lot_size": 0.6
-      }
-    ],
+    "current_value": 1000,
+    "cash": 1000,
+    "positions": [],
     "history": [
       {
-        "timestamp": "2025-12-28T00:00:00",
+        "timestamp": "2025-12-29T00:00:00",
         "value": 1000,
         "event": "initial"
-      },
-      {
-        "timestamp": "2025-12-28T19:22:01.173954",
-        "value": 1000.0847457627119,
-        "trade_id": "SIG202512281900001",
-        "pnl_pct": 0.1694915254237288
       }
     ]
   },
   "stats": {
-    "total_trades": 1,
-    "wins": 1,
+    "total_trades": 0,
+    "wins": 0,
     "losses": 0,
-    "total_pnl_pct": 0.1694915254237288,
-    "best_trade": {
-      "id": "SIG202512281900001",
-      "pnl_pct": 0.1694915254237288,
-      "date": "2025-12-28T19:22:01.173937",
-      "direction": "LONG"
-    },
-    "worst_trade": {
-      "id": "SIG202512281900001",
-      "pnl_pct": 0.1694915254237288,
-      "date": "2025-12-28T19:22:01.173937",
-      "direction": "LONG"
-    },
-    "current_streak": 1,
-    "best_streak": 1,
+    "total_pnl_pct": 0,
+    "best_trade": null,
+    "worst_trade": null,
+    "current_streak": 0,
+    "best_streak": 0,
     "worst_streak": 0,
-    "avg_win_pct": 0.1694915254237288,
+    "avg_win_pct": 0,
     "avg_loss_pct": 0
   }
 }
