@@ -2,16 +2,19 @@ name: S&P 500 Telegram Bot
 
 on:
   schedule:
+    # Every 15 minutes during market hours (14:00-21:00 UTC, Mon-Fri)
+    - cron: '*/15 14-21 * * 1-5'
     # Market Open - 9:30 AM ET = 14:30 UTC
     - cron: '30 14 * * 1-5'
     # Market Close - 4:00 PM ET = 21:00 UTC
     - cron: '0 21 * * 1-5'
+
   workflow_dispatch:
     inputs:
       command:
-        description: 'Command to run (open/close/report/test)'
+        description: 'Command: predict, open, close, test'
         required: true
-        default: 'test'
+        default: 'predict'
 
 jobs:
   run-bot:
@@ -27,7 +30,8 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install requests pandas numpy yfinance
 
       - name: Determine command
         id: command
@@ -36,15 +40,44 @@ jobs:
             echo "cmd=${{ github.event.inputs.command }}" >> $GITHUB_OUTPUT
           else
             HOUR=$(date -u +%H)
-            if [ "$HOUR" == "14" ]; then
+            MIN=$(date -u +%M)
+
+            # Check if it's market open time (14:30 UTC)
+            if [ "$HOUR" == "14" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
               echo "cmd=open" >> $GITHUB_OUTPUT
-            else
+            # Check if it's market close time (21:00 UTC)
+            elif [ "$HOUR" == "21" ] && [ "$MIN" -le "5" ]; then
               echo "cmd=close" >> $GITHUB_OUTPUT
+            # Otherwise, run prediction
+            else
+              echo "cmd=predict" >> $GITHUB_OUTPUT
             fi
           fi
 
-      - name: Run bot
+      - name: Run Market Open
+        if: steps.command.outputs.cmd == 'open'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python bot.py ${{ steps.command.outputs.cmd }}
+        run: python bot.py open
+
+      - name: Run Market Close
+        if: steps.command.outputs.cmd == 'close'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python bot.py close
+
+      - name: Run Prediction
+        if: steps.command.outputs.cmd == 'predict'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python predictor.py predict
+
+      - name: Run Test
+        if: steps.command.outputs.cmd == 'test'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python predictor.py test
