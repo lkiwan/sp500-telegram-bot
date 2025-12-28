@@ -5,48 +5,57 @@
       "timestamp": "2025-12-28T19:00:00",
       "direction": "LONG",
       "ticker": "SPY",
-      "entry_price": 5900.00,
-      "take_profit": 5910.00,
-      "stop_loss": 5880.00,
+      "entry_price": 5900.0,
+      "take_profit": 5910.0,
+      "stop_loss": 5880.0,
       "confidence": 65.0,
-      "status": "open",
-      "exit_price": null,
-      "exit_timestamp": null,
-      "pnl_pct": null,
+      "status": "tp_hit",
+      "exit_price": 5910.0,
+      "exit_timestamp": "2025-12-28T19:22:01.173937",
+      "pnl_pct": 0.1694915254237288,
       "notes": ""
     }
   ],
   "portfolio": {
     "initial_capital": 1000,
-    "current_value": 1000,
-    "cash": 950,
-    "positions": [
-      {
-        "signal_id": "SIG202512281900001",
-        "entry_value": 50,
-        "shares": 0.00847,
-        "direction": "LONG"
-      }
-    ],
+    "current_value": 1000.0847457627119,
+    "cash": 1000.0847457627119,
+    "positions": [],
     "history": [
       {
         "timestamp": "2025-12-28T00:00:00",
         "value": 1000,
         "event": "initial"
+      },
+      {
+        "timestamp": "2025-12-28T19:22:01.173954",
+        "value": 1000.0847457627119,
+        "trade_id": "SIG202512281900001",
+        "pnl_pct": 0.1694915254237288
       }
     ]
   },
   "stats": {
-    "total_trades": 0,
-    "wins": 0,
+    "total_trades": 1,
+    "wins": 1,
     "losses": 0,
-    "total_pnl_pct": 0,
-    "best_trade": null,
-    "worst_trade": null,
-    "current_streak": 0,
-    "best_streak": 0,
+    "total_pnl_pct": 0.1694915254237288,
+    "best_trade": {
+      "id": "SIG202512281900001",
+      "pnl_pct": 0.1694915254237288,
+      "date": "2025-12-28T19:22:01.173937",
+      "direction": "LONG"
+    },
+    "worst_trade": {
+      "id": "SIG202512281900001",
+      "pnl_pct": 0.1694915254237288,
+      "date": "2025-12-28T19:22:01.173937",
+      "direction": "LONG"
+    },
+    "current_streak": 1,
+    "best_streak": 1,
     "worst_streak": 0,
-    "avg_win_pct": 0,
+    "avg_win_pct": 0.1694915254237288,
     "avg_loss_pct": 0
   }
 }
