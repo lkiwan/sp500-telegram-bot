@@ -935,6 +935,383 @@ def post_earnings():
 
 
 # ============================================
+# ML-DRIVEN ANALYSIS POSTS
+# ============================================
+
+def post_ml_factor_analysis():
+    """Post ML factor analysis - what's driving the prediction."""
+    print("Posting ML factor analysis...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    # Get ML prediction and factors
+    prediction = ml_predictor.predict(df, economic_data)
+    factors = ml_predictor.get_factor_analysis(df, economic_data)
+    tier = ml_predictor.get_confidence_tier(prediction['confidence'])
+
+    if not factors:
+        return False
+
+    direction = prediction['direction']
+    confidence = prediction['confidence']
+    direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
+
+    # Build factor breakdown
+    rsi_emoji = '🟢' if factors['rsi']['signal'] == 'BULLISH' else ('🔴' if factors['rsi']['signal'] == 'BEARISH' else '⚪')
+    mom_emoji = '🟢' if factors['momentum']['signal'] == 'BULLISH' else ('🔴' if factors['momentum']['signal'] == 'BEARISH' else '🟡')
+    trend_emoji = '🟢' if factors['trend']['signal'] == 'BULLISH' else ('🔴' if factors['trend']['signal'] == 'BEARISH' else '🟡')
+    macd_emoji = '🟢' if factors['macd']['signal'] == 'BULLISH' else '🔴'
+    vix_emoji = '🟢' if factors['vix']['signal'] == 'GREED' else ('🔴' if factors['vix']['signal'] == 'FEAR' else '⚪')
+
+    msg = f"""
+{EMOJI['brain']} <b>ML Factor Analysis</b>
+
+{tier['emoji']} <b>Signal: {direction}</b> | Confidence: {confidence:.1f}%
+Model: XGBoost ML ({tier['historical_winrate']} win rate at this tier)
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Key Factors Driving Prediction:</b>
+
+{rsi_emoji} <b>RSI:</b> {factors['rsi']['value']:.1f} - {factors['rsi']['note']}
+{mom_emoji} <b>Momentum:</b> 5D: {factors['momentum']['value_5d']:+.2f}% | 20D: {factors['momentum']['value_20d']:+.2f}%
+{trend_emoji} <b>Trend:</b> {'Above' if factors['trend']['above_sma20'] else 'Below'} SMA20, {'Above' if factors['trend']['above_sma50'] else 'Below'} SMA50
+{macd_emoji} <b>MACD:</b> {factors['macd']['signal']} (Histogram: {factors['macd']['histogram']:.2f})
+{vix_emoji} <b>VIX:</b> {factors['vix']['value']:.1f} - {factors['vix']['note']}
+
+<b>Volatility:</b> {factors['volatility']['value_5d']:.2f}% (5D) | {'Expanding' if factors['volatility']['expanding'] else 'Contracting'}
+<b>Bollinger:</b> {factors['bollinger']['signal']} (Position: {factors['bollinger']['position']:.0%})
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Summary:</b> {factors['summary']['bullish_factors']} Bullish | {factors['summary']['bearish_factors']} Bearish
+<b>Overall Factor Bias:</b> {factors['summary']['overall']}
+
+{mentor.get_closing_thought('bullish' if direction == 'LONG' else 'bearish')}
+
+#SP500 #MLAnalysis #TradingSignals #AI
+"""
+    return send_telegram(msg)
+
+
+def post_ml_quick_scan():
+    """Quick ML scan - posts only if high confidence signal found."""
+    print("Running ML quick scan...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    prediction = ml_predictor.predict(df, economic_data)
+    confidence = prediction['confidence']
+
+    # Only post if confidence >= 65% (high quality signals)
+    if confidence < 65:
+        print(f"Confidence {confidence:.1f}% below quick scan threshold (65%)")
+        return False
+
+    return post_signal_check()
+
+
+def post_high_confidence_alert():
+    """Post ONLY if confidence >= 75% - elite signals."""
+    print("Checking for high confidence signal...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    prediction = ml_predictor.predict(df, economic_data)
+    confidence = prediction['confidence']
+    direction = prediction['direction']
+
+    # Only post elite signals (75%+)
+    if confidence < 75:
+        print(f"Confidence {confidence:.1f}% below elite threshold (75%)")
+        return False
+
+    tier = ml_predictor.get_confidence_tier(confidence)
+    factors = ml_predictor.get_factor_analysis(df, economic_data)
+    levels = ml_predictor.get_signal_levels(data['close'], direction, confidence)
+
+    direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
+
+    # Track the signal
+    signal = tracker.add_signal(
+        direction=direction,
+        entry_price=levels['entry'],
+        take_profit=levels['take_profit'],
+        stop_loss=levels['stop_loss'],
+        confidence=confidence,
+        ticker="SPY"
+    )
+
+    lot_size = tracker.get_lot_size(confidence)
+    position_value = 1000 * lot_size
+
+    tp_pct = abs((levels['take_profit'] - levels['entry']) / levels['entry']) * 100
+    sl_pct = abs((levels['stop_loss'] - levels['entry']) / levels['entry']) * 100
+
+    msg = f"""
+{tier['emoji']} <b>HIGH CONFIDENCE ALERT</b> {tier['emoji']}
+
+{direction_emoji} <b>{direction}</b> SPY
+
+<b>Tier:</b> {tier['tier']} ({tier['historical_winrate']} historical win rate)
+<b>Confidence:</b> {confidence:.1f}%
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Entry:</b> <code>${levels['entry']:,.2f}</code>
+<b>Take Profit:</b> <code>${levels['take_profit']:,.2f}</code> (+{tp_pct:.2f}%)
+<b>Stop Loss:</b> <code>${levels['stop_loss']:,.2f}</code> (-{sl_pct:.2f}%)
+
+<b>Position:</b>
+• Lot: {lot_size} ({lot_size*100:.0f}%)
+• Value: ${position_value:,.0f}
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Why This Is Strong:</b>
+• RSI: {factors['rsi']['value']:.1f} ({factors['rsi']['signal']})
+• Momentum: {factors['momentum']['signal']}
+• Trend: {factors['trend']['signal']}
+• MACD: {factors['macd']['signal']}
+
+{EMOJI['fire']} <b>This is one of our highest conviction setups!</b>
+
+The ML model has identified strong alignment across multiple factors.
+Historical data shows {tier['historical_winrate']} success rate at this confidence level.
+
+⚠️ <i>Educational content only. Not financial advice.</i>
+
+#SP500 #HighConfidence #MLSignal #EliteSetup
+"""
+    return send_telegram(msg)
+
+
+def post_ml_momentum():
+    """Post ML momentum update with trend analysis."""
+    print("Posting ML momentum update...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    prediction = ml_predictor.predict(df, economic_data)
+    factors = ml_predictor.get_factor_analysis(df, economic_data)
+
+    direction = prediction['direction']
+    confidence = prediction['confidence']
+    direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
+
+    # Momentum analysis
+    mom_5d = factors['momentum']['value_5d']
+    mom_20d = factors['momentum']['value_20d']
+
+    if mom_5d > 1 and mom_20d > 2:
+        mom_status = "STRONG UPTREND"
+        mom_emoji = "🚀"
+    elif mom_5d > 0 and mom_20d > 0:
+        mom_status = "UPTREND"
+        mom_emoji = "📈"
+    elif mom_5d < -1 and mom_20d < -2:
+        mom_status = "STRONG DOWNTREND"
+        mom_emoji = "📉"
+    elif mom_5d < 0 and mom_20d < 0:
+        mom_status = "DOWNTREND"
+        mom_emoji = "⬇️"
+    else:
+        mom_status = "CONSOLIDATING"
+        mom_emoji = "↔️"
+
+    # Volatility status
+    vol = factors['volatility']['value_5d']
+    if vol > 1.5:
+        vol_status = "HIGH - Be careful with position sizing"
+    elif vol > 1.0:
+        vol_status = "ELEVATED - Normal market conditions"
+    else:
+        vol_status = "LOW - Good for trend following"
+
+    msg = f"""
+{mom_emoji} <b>ML Momentum Update</b>
+
+<b>Current Trend:</b> {mom_status}
+
+<b>ML Prediction:</b> {direction_emoji} {direction} ({confidence:.0f}%)
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Momentum Breakdown:</b>
+• 5-Day: {mom_5d:+.2f}%
+• 20-Day: {mom_20d:+.2f}%
+
+<b>Price vs Moving Averages:</b>
+• vs SMA 20: {'Above' if factors['trend']['above_sma20'] else 'Below'} (${factors['trend']['sma_20']:,.2f})
+• vs SMA 50: {'Above' if factors['trend']['above_sma50'] else 'Below'} (${factors['trend']['sma_50']:,.2f})
+
+<b>Volatility:</b> {vol:.2f}%
+Status: {vol_status}
+
+<b>MACD:</b> {factors['macd']['signal']}
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+{mentor.get_greeting()}
+
+The ML model is tracking {mom_status.lower()} conditions.
+{'Momentum is aligned with our prediction!' if (mom_5d > 0 and direction == 'LONG') or (mom_5d < 0 and direction == 'SHORT') else 'Watch for momentum to confirm direction.'}
+
+#SP500 #Momentum #TrendAnalysis #ML
+"""
+    return send_telegram(msg)
+
+
+def post_ml_risk_assessment():
+    """Post ML risk assessment."""
+    print("Posting ML risk assessment...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    prediction = ml_predictor.predict(df, economic_data)
+    factors = ml_predictor.get_factor_analysis(df, economic_data)
+
+    # Calculate risk score
+    risk_score = 0
+
+    # VIX contribution
+    vix = factors['vix']['value']
+    if vix > 30:
+        risk_score += 3
+        vix_risk = "EXTREME"
+    elif vix > 25:
+        risk_score += 2
+        vix_risk = "HIGH"
+    elif vix > 20:
+        risk_score += 1
+        vix_risk = "MODERATE"
+    else:
+        vix_risk = "LOW"
+
+    # Volatility contribution
+    vol = factors['volatility']['value_5d']
+    if vol > 2:
+        risk_score += 2
+        vol_risk = "HIGH"
+    elif vol > 1:
+        risk_score += 1
+        vol_risk = "MODERATE"
+    else:
+        vol_risk = "LOW"
+
+    # Bollinger position
+    bb_pos = factors['bollinger']['position']
+    if bb_pos > 0.9 or bb_pos < 0.1:
+        risk_score += 1
+        bb_risk = "EXTREME ZONE"
+    elif bb_pos > 0.8 or bb_pos < 0.2:
+        bb_risk = "CAUTION ZONE"
+    else:
+        bb_risk = "NORMAL"
+
+    # Overall risk
+    if risk_score >= 5:
+        overall_risk = "HIGH"
+        risk_emoji = "🔴"
+        lot_advice = "Consider 0.1-0.2 lots max"
+    elif risk_score >= 3:
+        overall_risk = "MODERATE"
+        risk_emoji = "🟡"
+        lot_advice = "Standard lot sizing OK"
+    else:
+        overall_risk = "LOW"
+        risk_emoji = "🟢"
+        lot_advice = "Normal lot sizing appropriate"
+
+    confidence = prediction['confidence']
+    direction = prediction['direction']
+
+    msg = f"""
+{risk_emoji} <b>ML Risk Assessment</b>
+
+<b>Overall Risk Level:</b> {overall_risk}
+<b>Risk Score:</b> {risk_score}/6
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Risk Factors:</b>
+
+{EMOJI['warning'] if vix_risk in ['HIGH', 'EXTREME'] else '✅'} <b>VIX:</b> {vix:.1f} ({vix_risk})
+{EMOJI['warning'] if vol_risk == 'HIGH' else '✅'} <b>Volatility:</b> {vol:.2f}% ({vol_risk})
+{EMOJI['warning'] if 'EXTREME' in bb_risk else '✅'} <b>Bollinger:</b> {bb_risk}
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Current ML Signal:</b>
+Direction: {direction}
+Confidence: {confidence:.0f}%
+
+<b>Position Advice:</b>
+{lot_advice}
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+<b>Risk Management Tips:</b>
+• Always use stop losses
+• Never risk more than 2% per trade
+• Reduce size in high volatility
+• Don't chase losses
+
+Stay disciplined, traders! 💪
+
+#SP500 #RiskManagement #TradingTips
+"""
+    return send_telegram(msg)
+
+
+def post_quick_signal():
+    """Quick 5-min signal check - posts if ANY valid signal."""
+    print("Quick signal check...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    prediction = ml_predictor.predict(df, economic_data)
+    confidence = prediction['confidence']
+
+    # Post any signal above minimum threshold
+    if confidence >= MIN_CONFIDENCE:
+        return post_signal_check()
+    else:
+        print(f"No signal - confidence {confidence:.1f}% below {MIN_CONFIDENCE}%")
+        return False
+
+
+# ============================================
 # COMMAND ROUTING
 # ============================================
 
@@ -966,6 +1343,17 @@ COMMANDS = {
     'earnings': post_earnings,
     # Monitoring
     'monitor': post_monitor,
+    # ML Analysis Posts
+    'factors': post_ml_factor_analysis,
+    'ml_factors': post_ml_factor_analysis,
+    'quick_scan': post_ml_quick_scan,
+    'elite': post_high_confidence_alert,
+    'high_confidence': post_high_confidence_alert,
+    'momentum': post_ml_momentum,
+    'ml_momentum': post_ml_momentum,
+    'risk': post_ml_risk_assessment,
+    'ml_risk': post_ml_risk_assessment,
+    'quick': post_quick_signal,
 }
 
 

@@ -156,6 +156,8 @@ EMOJI = {
     'info': 'ℹ️',
     'star': '⭐',
     'gem': '💎',
+    'brain': '🧠',
+    'lightning': '⚡',
 }
 
 # Hashtag sets

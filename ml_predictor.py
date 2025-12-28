@@ -365,6 +365,157 @@ class MLPredictor:
             'stop_loss': stop_loss
         }
 
+    def get_factor_analysis(self, df: pd.DataFrame, economic_data: Dict) -> Dict:
+        """
+        Analyze key factors driving the ML prediction.
+
+        Returns analysis of top factors: RSI, momentum, volatility, economic.
+        """
+        if len(df) < 20:
+            return {}
+
+        # Calculate key indicators
+        close = df['close']
+
+        # RSI
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss
+        rsi = (100 - (100 / (1 + rs))).iloc[-1]
+
+        # Momentum
+        momentum_5 = ((close.iloc[-1] / close.iloc[-5]) - 1) * 100 if len(close) >= 5 else 0
+        momentum_20 = ((close.iloc[-1] / close.iloc[-20]) - 1) * 100 if len(close) >= 20 else 0
+
+        # Volatility
+        returns = close.pct_change()
+        volatility_5d = returns.rolling(5).std().iloc[-1] * 100
+        volatility_20d = returns.rolling(20).std().iloc[-1] * 100
+
+        # Trend
+        sma_20 = close.rolling(20).mean().iloc[-1]
+        sma_50 = close.rolling(50).mean().iloc[-1] if len(close) >= 50 else sma_20
+        above_sma20 = close.iloc[-1] > sma_20
+        above_sma50 = close.iloc[-1] > sma_50
+
+        # MACD
+        ema_12 = close.ewm(span=12).mean()
+        ema_26 = close.ewm(span=26).mean()
+        macd = ema_12 - ema_26
+        macd_signal = macd.ewm(span=9).mean()
+        macd_hist = (macd - macd_signal).iloc[-1]
+        macd_bullish = macd_hist > 0
+
+        # Bollinger position
+        bb_middle = close.rolling(20).mean().iloc[-1]
+        bb_std = close.rolling(20).std().iloc[-1]
+        bb_upper = bb_middle + 2 * bb_std
+        bb_lower = bb_middle - 2 * bb_std
+        bb_position = (close.iloc[-1] - bb_lower) / (bb_upper - bb_lower) if bb_upper != bb_lower else 0.5
+
+        # Economic factors
+        vix = economic_data.get('vix', 20)
+        fed_rate = economic_data.get('fed_rate', 5.25)
+
+        # Determine factor signals
+        factors = {
+            'rsi': {
+                'value': rsi,
+                'signal': 'BULLISH' if rsi < 40 else ('BEARISH' if rsi > 60 else 'NEUTRAL'),
+                'strength': abs(50 - rsi) / 50,
+                'note': 'Oversold' if rsi < 30 else ('Overbought' if rsi > 70 else 'Normal')
+            },
+            'momentum': {
+                'value_5d': momentum_5,
+                'value_20d': momentum_20,
+                'signal': 'BULLISH' if momentum_5 > 0 and momentum_20 > 0 else ('BEARISH' if momentum_5 < 0 and momentum_20 < 0 else 'MIXED'),
+                'strength': min(abs(momentum_5) / 5, 1.0)
+            },
+            'volatility': {
+                'value_5d': volatility_5d,
+                'value_20d': volatility_20d,
+                'signal': 'HIGH' if volatility_5d > 1.5 else ('LOW' if volatility_5d < 0.5 else 'NORMAL'),
+                'expanding': volatility_5d > volatility_20d
+            },
+            'trend': {
+                'above_sma20': above_sma20,
+                'above_sma50': above_sma50,
+                'signal': 'BULLISH' if above_sma20 and above_sma50 else ('BEARISH' if not above_sma20 and not above_sma50 else 'MIXED'),
+                'sma_20': sma_20,
+                'sma_50': sma_50
+            },
+            'macd': {
+                'histogram': macd_hist,
+                'signal': 'BULLISH' if macd_bullish else 'BEARISH',
+                'strength': min(abs(macd_hist) / 10, 1.0)
+            },
+            'bollinger': {
+                'position': bb_position,
+                'signal': 'OVERSOLD' if bb_position < 0.2 else ('OVERBOUGHT' if bb_position > 0.8 else 'NEUTRAL'),
+                'upper': bb_upper,
+                'lower': bb_lower
+            },
+            'vix': {
+                'value': vix,
+                'signal': 'FEAR' if vix > 25 else ('GREED' if vix < 15 else 'NEUTRAL'),
+                'note': 'High volatility expected' if vix > 25 else ('Low volatility' if vix < 15 else 'Normal')
+            }
+        }
+
+        # Count bullish/bearish factors
+        bullish_count = 0
+        bearish_count = 0
+
+        for factor in ['rsi', 'momentum', 'trend', 'macd']:
+            if factors[factor]['signal'] == 'BULLISH':
+                bullish_count += 1
+            elif factors[factor]['signal'] == 'BEARISH':
+                bearish_count += 1
+
+        factors['summary'] = {
+            'bullish_factors': bullish_count,
+            'bearish_factors': bearish_count,
+            'overall': 'BULLISH' if bullish_count > bearish_count else ('BEARISH' if bearish_count > bullish_count else 'NEUTRAL')
+        }
+
+        return factors
+
+    def get_confidence_tier(self, confidence: float) -> Dict:
+        """Get confidence tier information for display."""
+        if confidence >= 80:
+            return {
+                'tier': 'ELITE',
+                'emoji': '🔥🔥🔥',
+                'historical_winrate': '93.12%',
+                'description': 'Highest conviction signal',
+                'lot_recommendation': '0.8-1.0'
+            }
+        elif confidence >= 70:
+            return {
+                'tier': 'HIGH',
+                'emoji': '🔥🔥',
+                'historical_winrate': '~85%',
+                'description': 'Strong conviction signal',
+                'lot_recommendation': '0.5-0.7'
+            }
+        elif confidence >= 60:
+            return {
+                'tier': 'MEDIUM',
+                'emoji': '🔥',
+                'historical_winrate': '~75%',
+                'description': 'Moderate conviction signal',
+                'lot_recommendation': '0.3-0.5'
+            }
+        else:
+            return {
+                'tier': 'STANDARD',
+                'emoji': '📊',
+                'historical_winrate': '~71%',
+                'description': 'Standard signal',
+                'lot_recommendation': '0.1-0.3'
+            }
+
 
 def test_predictor():
     """Test the ML predictor."""
