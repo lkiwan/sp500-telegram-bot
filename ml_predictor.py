@@ -352,12 +352,12 @@ class MLPredictor:
 
         if direction == "LONG":
             entry = current_price
-            take_profit = entry * tp_mult
-            stop_loss = entry * (2 - sl_mult)  # Convert to stop loss below
+            take_profit = entry * tp_mult          # TP above entry
+            stop_loss = entry * sl_mult            # SL below entry
         else:
             entry = current_price
-            take_profit = entry * (2 - tp_mult)  # Convert to take profit below
-            stop_loss = entry * sl_mult
+            take_profit = entry * (2 - tp_mult)    # TP below entry
+            stop_loss = entry * (2 - sl_mult)      # SL above entry
 
         return {
             'entry': entry,
