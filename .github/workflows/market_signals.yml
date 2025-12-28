@@ -54,6 +54,9 @@ on:
           - economic
           - close
           - weekly
+          - welcome
+          - logo
+          - banner
 
 jobs:
   run-bot:

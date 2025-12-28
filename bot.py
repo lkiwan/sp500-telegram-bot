@@ -18,6 +18,7 @@ from styles import EMOJI, get_hashtags
 from chart_generator import ChartGenerator
 from commentary_engine import TradingMentor, POST_TEMPLATES
 from signal_tracker import SignalTracker
+from branding import post_welcome_message, post_logo, post_banner, get_channel_description
 
 # Configuration from GitHub Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -749,6 +750,10 @@ COMMANDS = {
     'market_close': post_market_close,
     'weekly': post_weekly_report,
     'weekly_report': post_weekly_report,
+    # Branding
+    'welcome': post_welcome_message,
+    'logo': post_logo,
+    'banner': post_banner,
 }
 
 
