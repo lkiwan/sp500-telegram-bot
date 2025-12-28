@@ -20,6 +20,7 @@ from commentary_engine import TradingMentor, POST_TEMPLATES
 from signal_tracker import SignalTracker
 from branding import post_welcome_message, post_logo, post_banner, get_channel_description
 from news_fetcher import NewsFetcher, format_news_post, format_earnings_post
+from ml_predictor import MLPredictor
 
 # Configuration from GitHub Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -34,6 +35,9 @@ charts = ChartGenerator()
 mentor = TradingMentor()
 tracker = SignalTracker("data/signals.json", initial_capital=1000.0)
 news = NewsFetcher()
+
+# ML Predictor - Uses trained XGBoost model (71.20% accuracy, 93.12% at high confidence)
+ml_predictor = MLPredictor(models_path="models")
 
 
 def send_telegram(text: str) -> bool:
@@ -487,74 +491,38 @@ def post_sentiment():
 
 
 def post_signal_check():
-    """Check for trading signals and post if found."""
-    print("Checking for signals...")
+    """Check for trading signals using ML model and post if found."""
+    print("Checking for signals using ML model...")
 
     data = get_current_data()
     if not data:
         print("No data available")
         return False
 
-    # Calculate signal
-    score = 0.5
-    rsi = data['rsi']
-    macd_hist = data['macd_hist']
-    bb_position = (data['close'] - data['bb_lower']) / (data['bb_upper'] - data['bb_lower']) if data['bb_upper'] != data['bb_lower'] else 0.5
+    # Get economic data for ML model
+    economic_data = get_economic_data()
 
-    # RSI signals
-    if rsi < 30:
-        score += 0.15
-    elif rsi > 70:
-        score -= 0.15
-    elif rsi < 45:
-        score += 0.05
-    elif rsi > 55:
-        score -= 0.05
+    # Use ML model for prediction
+    df = data['df']
+    prediction = ml_predictor.predict(df, economic_data)
 
-    # MACD
-    if macd_hist > 0:
-        score += 0.10
-    else:
-        score -= 0.10
+    direction = prediction['direction']
+    confidence = prediction['confidence']
+    model_used = prediction.get('model_used', 'Unknown')
 
-    # Bollinger
-    if bb_position < 0.2:
-        score += 0.10
-    elif bb_position > 0.8:
-        score -= 0.10
-
-    # Trend
-    if data['close'] > data['sma_20']:
-        score += 0.10
-    else:
-        score -= 0.10
-
-    score = max(0.1, min(0.9, score))
-
-    # Determine direction and confidence
-    if score > 0.5:
-        direction = "LONG"
-        confidence = score * 100
-    else:
-        direction = "SHORT"
-        confidence = (1 - score) * 100
-
-    print(f"Signal: {direction} with {confidence:.1f}% confidence")
+    print(f"ML Signal: {direction} with {confidence:.1f}% confidence (Model: {model_used})")
 
     # Only post if confident
     if confidence >= MIN_CONFIDENCE:
         current_price = data['close']
 
-        if direction == "LONG":
-            entry = current_price
-            take_profit = entry * 1.008
-            stop_loss = entry * 0.995
-            direction_emoji = EMOJI['bullish']
-        else:
-            entry = current_price
-            take_profit = entry * 0.992
-            stop_loss = entry * 1.005
-            direction_emoji = EMOJI['bearish']
+        # Get signal levels based on confidence
+        levels = ml_predictor.get_signal_levels(current_price, direction, confidence)
+        entry = levels['entry']
+        take_profit = levels['take_profit']
+        stop_loss = levels['stop_loss']
+
+        direction_emoji = EMOJI['bullish'] if direction == "LONG" else EMOJI['bearish']
 
         # Track signal
         signal = tracker.add_signal(
@@ -566,7 +534,9 @@ def post_signal_check():
             ticker="SPY"
         )
 
-        # Generate explanation
+        # Generate explanation using technical data
+        rsi = data['rsi']
+        macd_hist = data['macd_hist']
         explanation = mentor.explain_signal(direction, {
             'rsi': rsi,
             'macd_hist': macd_hist,
@@ -581,8 +551,16 @@ def post_signal_check():
         lot_size = tracker.get_lot_size(confidence)
         position_value = 1000 * lot_size  # Based on $1000 account
 
+        # ML model indicator
+        if ml_predictor.is_loaded:
+            model_badge = "XGBoost ML"
+            accuracy_note = "(71% overall, 93% at high confidence)"
+        else:
+            model_badge = "Technical Analysis"
+            accuracy_note = "(Fallback mode)"
+
         msg = f"""
-{EMOJI['signal']} <b>Signal Alert</b>
+{EMOJI['signal']} <b>ML Signal Alert</b>
 
 {direction_emoji} <b>{direction}</b> SPY
 
@@ -596,8 +574,14 @@ def post_signal_check():
 • Lot: {lot_size} ({lot_size*100:.0f}% of account)
 • Value: ${position_value:,.0f}
 
-<b>Why this setup:</b>
+<b>Model:</b> {model_badge} {accuracy_note}
+
+<b>Analysis:</b>
 {explanation}
+
+• RSI: {rsi:.1f}
+• MACD: {'Bullish' if macd_hist > 0 else 'Bearish'}
+• VIX: {economic_data.get('vix', 20):.1f}
 
 ⚠️ <i>Educational content only. Not financial advice.</i>
 
