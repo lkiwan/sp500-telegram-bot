@@ -31,8 +31,8 @@ COLORS = {
     'ema_26': '#ff9800',            # Orange
 
     # Bollinger Bands
-    'bollinger': '#42a5f5',         # Light blue
-    'bollinger_fill': '#42a5f520',  # Transparent fill
+    'bollinger': '#9c27b0',         # Purple (distinct from SMAs)
+    'bollinger_fill': '#9c27b020',  # Transparent fill
 
     # RSI
     'rsi_line': '#00e676',          # Neon green
