@@ -733,86 +733,116 @@ ChartGenerator.generate_momentum_chart = lambda self, df, direction, confidence:
 def _generate_signal_chart(self, current_price: float, entry: float,
                            take_profit: float, stop_loss: float,
                            direction: str, confidence: float) -> BytesIO:
-    """Generate simple signal chart showing entry, TP, SL levels."""
+    """Generate professional TradingView-style signal chart."""
 
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor=COLORS['background'])
+    fig, ax = plt.subplots(figsize=(12, 10), facecolor=COLORS['background'])
     ax.set_facecolor(COLORS['background'])
 
-    # Calculate price range
-    all_prices = [entry, take_profit, stop_loss]
-    price_min = min(all_prices) * 0.998
-    price_max = max(all_prices) * 1.002
-
     # Colors
-    tp_color = '#00e676'  # Green
-    sl_color = '#ff5252'  # Red
-    entry_color = '#ffeb3b'  # Yellow
-    price_color = '#2196f3'  # Blue
-
-    # Draw horizontal lines for levels
-    ax.axhline(y=take_profit, color=tp_color, linewidth=3, linestyle='-', alpha=0.9)
-    ax.axhline(y=entry, color=entry_color, linewidth=3, linestyle='-', alpha=0.9)
-    ax.axhline(y=stop_loss, color=sl_color, linewidth=3, linestyle='-', alpha=0.9)
-    ax.axhline(y=current_price, color=price_color, linewidth=2, linestyle='--', alpha=0.7)
-
-    # Fill zones
     if direction == "LONG":
-        ax.fill_between([0, 1], entry, take_profit, color=tp_color, alpha=0.15)
-        ax.fill_between([0, 1], stop_loss, entry, color=sl_color, alpha=0.15)
+        main_color = '#00e676'  # Green
+        bg_gradient = '#0d2818'
     else:
-        ax.fill_between([0, 1], take_profit, entry, color=tp_color, alpha=0.15)
-        ax.fill_between([0, 1], entry, stop_loss, color=sl_color, alpha=0.15)
+        main_color = '#ff5252'  # Red
+        bg_gradient = '#2d1515'
 
-    # Labels on the right
-    ax.text(1.02, take_profit, f'  TP ${take_profit:,.0f}', fontsize=14,
-           color=tp_color, va='center', fontweight='bold', transform=ax.get_yaxis_transform())
-    ax.text(1.02, entry, f'  ENTRY ${entry:,.0f}', fontsize=14,
-           color=entry_color, va='center', fontweight='bold', transform=ax.get_yaxis_transform())
-    ax.text(1.02, stop_loss, f'  SL ${stop_loss:,.0f}', fontsize=14,
-           color=sl_color, va='center', fontweight='bold', transform=ax.get_yaxis_transform())
-    ax.text(1.02, current_price, f'  NOW ${current_price:,.0f}', fontsize=12,
-           color=price_color, va='center', transform=ax.get_yaxis_transform())
+    tp_color = '#00e676'
+    sl_color = '#ff5252'
+    entry_color = '#ffd700'  # Gold
+    line_color = '#ffffff'
 
     # Calculate percentages
-    tp_pct = ((take_profit - entry) / entry) * 100 if direction == "LONG" else ((entry - take_profit) / entry) * 100
+    tp_pct = abs((take_profit - entry) / entry) * 100
     sl_pct = abs((stop_loss - entry) / entry) * 100
+    rr = tp_pct / sl_pct if sl_pct > 0 else 0
 
-    # Title with direction arrow
-    arrow = "↑" if direction == "LONG" else "↓"
-    title_color = tp_color if direction == "LONG" else sl_color
-    ax.set_title(f'{arrow} {direction} SIGNAL | {confidence:.0f}% Confidence',
-                fontsize=18, color=title_color, fontweight='bold', pad=20)
+    # Layout positions
+    y_positions = {
+        'header': 0.92,
+        'direction': 0.80,
+        'divider1': 0.72,
+        'entry_label': 0.65,
+        'entry_value': 0.58,
+        'tp_label': 0.48,
+        'tp_value': 0.41,
+        'sl_label': 0.31,
+        'sl_value': 0.24,
+        'divider2': 0.16,
+        'stats': 0.08
+    }
 
-    # Info box
-    info_text = f'+{tp_pct:.1f}% profit target\n-{sl_pct:.1f}% stop loss'
-    ax.text(0.5, 0.95, info_text, transform=ax.transAxes, fontsize=12,
-           va='top', ha='center', color=COLORS['text_primary'],
-           bbox=dict(boxstyle='round', facecolor=COLORS['panel_bg'], alpha=0.8))
+    # === HEADER ===
+    ax.text(0.5, y_positions['header'], 'S&P 500 SIGNAL', fontsize=16,
+           color=COLORS['text_secondary'], ha='center', va='center', fontweight='bold')
 
-    # Clean up axes
+    # === DIRECTION with big text ===
+    ax.text(0.5, y_positions['direction'], direction, fontsize=48,
+           color=main_color, ha='center', va='center', fontweight='bold')
+
+    # Confidence badge
+    ax.add_patch(plt.Rectangle((0.35, 0.73), 0.30, 0.05,
+                facecolor=main_color, alpha=0.2, transform=ax.transAxes))
+    ax.text(0.5, 0.755, f'{confidence:.0f}% CONFIDENCE', fontsize=12,
+           color=main_color, ha='center', va='center', fontweight='bold')
+
+    # === DIVIDER LINE ===
+    ax.axhline(y=y_positions['divider1'], xmin=0.1, xmax=0.9,
+              color=COLORS['grid'], linewidth=1, alpha=0.5)
+
+    # === ENTRY ===
+    ax.text(0.5, y_positions['entry_label'], 'ENTRY PRICE', fontsize=11,
+           color=COLORS['text_secondary'], ha='center', va='center')
+    ax.text(0.5, y_positions['entry_value'], f'${entry:,.2f}', fontsize=28,
+           color=entry_color, ha='center', va='center', fontweight='bold')
+
+    # === TAKE PROFIT ===
+    ax.text(0.25, y_positions['tp_label'], 'TAKE PROFIT', fontsize=11,
+           color=COLORS['text_secondary'], ha='center', va='center')
+    ax.text(0.25, y_positions['tp_value'], f'${take_profit:,.2f}', fontsize=20,
+           color=tp_color, ha='center', va='center', fontweight='bold')
+    ax.text(0.25, y_positions['tp_value'] - 0.05, f'+{tp_pct:.2f}%', fontsize=14,
+           color=tp_color, ha='center', va='center', alpha=0.8)
+
+    # === STOP LOSS ===
+    ax.text(0.75, y_positions['sl_label'], 'STOP LOSS', fontsize=11,
+           color=COLORS['text_secondary'], ha='center', va='center')
+    ax.text(0.75, y_positions['sl_value'], f'${stop_loss:,.2f}', fontsize=20,
+           color=sl_color, ha='center', va='center', fontweight='bold')
+    ax.text(0.75, y_positions['sl_value'] - 0.05, f'-{sl_pct:.2f}%', fontsize=14,
+           color=sl_color, ha='center', va='center', alpha=0.8)
+
+    # === DIVIDER LINE ===
+    ax.axhline(y=y_positions['divider2'], xmin=0.1, xmax=0.9,
+              color=COLORS['grid'], linewidth=1, alpha=0.5)
+
+    # === BOTTOM STATS ===
+    ax.text(0.25, y_positions['stats'], f'R/R 1:{rr:.1f}', fontsize=14,
+           color=COLORS['text_primary'], ha='center', va='center', fontweight='bold')
+    ax.text(0.5, y_positions['stats'], 'SPY', fontsize=14,
+           color=COLORS['text_primary'], ha='center', va='center', fontweight='bold')
+    ax.text(0.75, y_positions['stats'], f'NOW ${current_price:,.2f}', fontsize=14,
+           color='#2196f3', ha='center', va='center', fontweight='bold')
+
+    # === STYLING ===
     ax.set_xlim(0, 1)
-    ax.set_ylim(price_min, price_max)
-    ax.set_xticks([])
-    ax.yaxis.tick_right()
-    ax.yaxis.set_label_position('right')
-    ax.tick_params(axis='y', colors=COLORS['text_secondary'], labelsize=10)
-    ax.spines['top'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['right'].set_color(COLORS['grid'])
+    ax.set_ylim(0, 1)
+    ax.axis('off')
+
+    # Border
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color(main_color)
+        spine.set_linewidth(2)
 
     # Watermark
-    fig.text(0.99, 0.01, '@lkiwanSP500', fontsize=11,
-            color=COLORS['text_muted'], alpha=0.8,
-            ha='right', va='bottom', fontfamily='monospace',
-            fontweight='bold')
-
-    plt.tight_layout()
+    fig.text(0.95, 0.02, '@lkiwanSP500', fontsize=11,
+            color=COLORS['text_muted'], alpha=0.6,
+            ha='right', va='bottom', fontweight='bold')
 
     buffer = BytesIO()
     fig.savefig(buffer, format='png', dpi=self.dpi,
                facecolor=COLORS['background'],
-               edgecolor='none', bbox_inches='tight')
+               edgecolor='none', bbox_inches='tight', pad_inches=0.3)
     buffer.seek(0)
     plt.close(fig)
 

@@ -532,40 +532,92 @@ def post_signal_check():
 
         lot_size = tracker.get_lot_size(confidence)
 
+        # Get factors for reasoning
+        factors = ml_predictor.get_factor_analysis(df, economic_data)
+
+        # Build reason text
+        reasons = []
+        if factors:
+            rsi = factors['rsi']['value']
+            if rsi < 35:
+                reasons.append(f"RSI oversold ({rsi:.0f})")
+            elif rsi > 65:
+                reasons.append(f"RSI overbought ({rsi:.0f})")
+
+            if factors['trend']['above_sma20'] and factors['trend']['above_sma50']:
+                reasons.append("Strong uptrend")
+            elif not factors['trend']['above_sma20'] and not factors['trend']['above_sma50']:
+                reasons.append("Downtrend")
+
+            if factors['macd']['signal'] == 'BULLISH':
+                reasons.append("MACD bullish")
+            elif factors['macd']['signal'] == 'BEARISH':
+                reasons.append("MACD bearish")
+
+            if factors['vix']['value'] < 18:
+                reasons.append("Low VIX (low fear)")
+
+        reason_text = " | ".join(reasons[:3]) if reasons else "Technical alignment"
+
         # Generate signal chart
         try:
             chart_buffer = charts.generate_signal_chart(
                 current_price, entry, take_profit, stop_loss, direction, confidence
             )
 
-            # Simple caption for chart
-            caption = f"""
-{direction_emoji} <b>{direction} SPY</b>
+            # Professional caption with emojis and reasons
+            if direction == "LONG":
+                caption = f"""
+🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
-Entry: ${entry:,.0f}
-Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
-Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
+💰 <b>Why:</b> {reason_text}
 
-Confidence: {confidence:.0f}%
-Risk/Reward: 1:{rr:.1f}
+⚡ Confidence: {confidence:.0f}%
+📊 Risk/Reward: 1:{rr:.1f}
 
-#SP500 #Trading
+#SP500 #Trading #StockMarket #SPY #TradingSignals #BuySignal #TechnicalAnalysis #DayTrading #SwingTrading #WallStreet
+"""
+            else:
+                caption = f"""
+🔴📉 <b>SELL SIGNAL</b> 📉🔴
+
+💰 <b>Why:</b> {reason_text}
+
+⚡ Confidence: {confidence:.0f}%
+📊 Risk/Reward: 1:{rr:.1f}
+
+#SP500 #Trading #StockMarket #SPY #TradingSignals #SellSignal #TechnicalAnalysis #DayTrading #SwingTrading #WallStreet
 """
             return send_telegram_photo(chart_buffer, caption)
 
         except Exception as e:
             print(f"Chart error: {e}")
             # Fallback to text
-            msg = f"""
-{direction_emoji} <b>{direction} SPY</b>
+            if direction == "LONG":
+                msg = f"""
+🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
-Entry: ${entry:,.0f}
-Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
-Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
+Entry: ${entry:,.2f}
+Target: ${take_profit:,.2f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-Confidence: {confidence:.0f}%
+💰 <b>Why:</b> {reason_text}
+⚡ Confidence: {confidence:.0f}%
 
-#SP500 #Trading
+#SP500 #Trading #BuySignal #SPY
+"""
+            else:
+                msg = f"""
+🔴📉 <b>SELL SIGNAL</b> 📉🔴
+
+Entry: ${entry:,.2f}
+Target: ${take_profit:,.2f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
+
+💰 <b>Why:</b> {reason_text}
+⚡ Confidence: {confidence:.0f}%
+
+#SP500 #Trading #SellSignal #SPY
 """
             return send_telegram(msg)
     else:
