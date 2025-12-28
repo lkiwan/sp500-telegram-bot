@@ -1,0 +1,29 @@
+{
+  "signals": [],
+  "portfolio": {
+    "initial_capital": 1000,
+    "current_value": 1000,
+    "cash": 1000,
+    "positions": [],
+    "history": [
+      {
+        "timestamp": "2025-12-28T00:00:00",
+        "value": 1000,
+        "event": "initial"
+      }
+    ]
+  },
+  "stats": {
+    "total_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "total_pnl_pct": 0,
+    "best_trade": null,
+    "worst_trade": null,
+    "current_streak": 0,
+    "best_streak": 0,
+    "worst_streak": 0,
+    "avg_win_pct": 0,
+    "avg_loss_pct": 0
+  }
+}

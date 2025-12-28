@@ -108,15 +108,17 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Download signal data
-        uses: actions/download-artifact@v4
-        with:
-          name: signal-data
-          path: data/
-        continue-on-error: true
-
       - name: Create data directory
         run: mkdir -p data
+
+      - name: Download signal data from repo
+        run: |
+          if [ -f "data/signals.json" ]; then
+            echo "Signal data exists in repo"
+          else
+            echo '{"signals":[],"portfolio":{"initial_capital":1000,"current_value":1000,"cash":1000,"positions":[],"history":[]},"stats":{"total_trades":0,"wins":0,"losses":0,"total_pnl_pct":0,"best_trade":null,"worst_trade":null,"current_streak":0,"best_streak":0,"worst_streak":0,"avg_win_pct":0,"avg_loss_pct":0}}' > data/signals.json
+            echo "Created empty signal data"
+          fi
 
       - name: Determine command
         id: command
@@ -192,12 +194,13 @@ jobs:
           echo "Running command: $CMD"
           python bot.py $CMD
 
-      - name: Save signal data
+      - name: Save signal data to repo
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: signal-data
-          path: data/signals.json
-          retention-days: 90
-          overwrite: true
-          if-no-files-found: ignore
+        run: |
+          if [ -f "data/signals.json" ]; then
+            git config --local user.email "bot@lkiwansp500.com"
+            git config --local user.name "SP500 Bot"
+            git add data/signals.json
+            git diff --staged --quiet || git commit -m "Update signal data [skip ci]"
+            git push || echo "Nothing to push"
+          fi
