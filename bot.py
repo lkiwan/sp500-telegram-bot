@@ -244,7 +244,7 @@ def get_economic_data() -> dict:
 # ============================================
 
 def post_morning_briefing():
-    """Post morning briefing with analysis."""
+    """Post simple morning briefing."""
     print("Posting morning briefing...")
 
     data = get_current_data()
@@ -252,32 +252,41 @@ def post_morning_briefing():
         print("Could not get market data")
         return False
 
-    # Get yesterday's data for overnight analysis
     prev_close = data['prev_close']
     current = data['close']
+    rsi = data['rsi']
+    macd_bullish = data['macd_hist'] > 0
+    above_sma = current > data['sma_20']
 
-    greeting = mentor.get_greeting('morning')
+    # Simple bias
+    if rsi < 30:
+        bias = "🟢 Oversold - Watch for bounce"
+    elif rsi > 70:
+        bias = "🔴 Overbought - Be careful"
+    elif macd_bullish and above_sma:
+        bias = "🟢 Bullish"
+    elif not macd_bullish and not above_sma:
+        bias = "🔴 Bearish"
+    else:
+        bias = "🟡 Neutral"
 
     msg = f"""
-{greeting}
+☀️ <b>Morning Briefing</b>
 
-{EMOJI['morning']} <b>Morning Briefing - {datetime.now().strftime('%B %d, %Y')}</b>
+S&P 500: ${prev_close:,.0f}
 
-<b>Yesterday's Close:</b> ${prev_close:,.2f}
+<b>Key Levels</b>
+Support: ${current * 0.99:,.0f}
+Resistance: ${current * 1.01:,.0f}
 
-<b>Key Levels to Watch:</b>
-• Resistance: ${current * 1.01:,.2f}
-• Support: ${current * 0.99:,.2f}
-• Pivot: ${current:,.2f}
+<b>Indicators</b>
+RSI: {rsi:.0f}
+MACD: {'Bullish' if macd_bullish else 'Bearish'}
+Trend: {'Up' if above_sma else 'Down'}
 
-<b>Technical Status:</b>
-• RSI: {data['rsi']:.1f}
-• MACD: {'Bullish' if data['macd_hist'] > 0 else 'Bearish'}
-• Trend: {'Above' if current > data['sma_20'] else 'Below'} 20 SMA
+{bias}
 
-{mentor.get_closing_thought('neutral')}
-
-{get_hashtags('morning')}
+#SP500 #Morning
 """
     return send_telegram(msg)
 
@@ -446,52 +455,42 @@ def post_economic_text(econ_data: dict) -> bool:
 
 
 def post_sentiment():
-    """Post market sentiment analysis."""
+    """Post simple sentiment check."""
     print("Posting sentiment...")
 
     econ_data = get_economic_data()
     vix = econ_data['vix']
+    fg = econ_data['fear_greed']
 
     if vix < 15:
-        emoji = f"{EMOJI['bullish']}{EMOJI['bullish']}{EMOJI['bullish']}"
+        sentiment_emoji = "🟢🟢🟢"
         sentiment = "EXTREME GREED"
-        commentary = "Markets are euphoric! Great for bulls, but watch for pullbacks."
     elif vix < 20:
-        emoji = f"{EMOJI['bullish']}{EMOJI['bullish']}"
+        sentiment_emoji = "🟢🟢"
         sentiment = "GREED"
-        commentary = "Bullish vibes! Momentum is on our side."
     elif vix < 25:
-        emoji = f"{EMOJI['neutral']}{EMOJI['neutral']}"
+        sentiment_emoji = "🟡"
         sentiment = "NEUTRAL"
-        commentary = "Market's undecided. Wait for clearer signals."
     elif vix < 30:
-        emoji = f"{EMOJI['bearish']}{EMOJI['bearish']}"
+        sentiment_emoji = "🔴🔴"
         sentiment = "FEAR"
-        commentary = "Caution in the air. Defensive mode might be smart."
     else:
-        emoji = f"{EMOJI['bearish']}{EMOJI['bearish']}{EMOJI['bearish']}"
+        sentiment_emoji = "🔴🔴🔴"
         sentiment = "EXTREME FEAR"
-        commentary = "High fear often means opportunity. Watch for bounces!"
 
     msg = f"""
-{mentor.get_greeting()}
+{sentiment_emoji} <b>{sentiment}</b>
 
-{emoji} <b>Market Sentiment: {sentiment}</b>
+VIX: {vix:.1f}
+Fear/Greed: {fg}/100
 
-<b>Fear & Greed Index:</b> {econ_data['fear_greed']}/100
-<b>VIX (Fear Gauge):</b> {vix:.2f}
-
-{commentary}
-
-{mentor.get_closing_thought('neutral')}
-
-{get_hashtags('sentiment')}
+#SP500 #Sentiment
 """
     return send_telegram(msg)
 
 
 def post_signal_check():
-    """Check for trading signals and post if found."""
+    """Check for trading signals and post if found - WITH CHART."""
     print("Checking for signals...")
 
     data = get_current_data()
@@ -527,106 +526,84 @@ def post_signal_check():
             ticker="SPY"
         )
 
-        rsi = data['rsi']
-        macd_hist = data['macd_hist']
-        explanation = mentor.explain_signal(direction, {
-            'rsi': rsi,
-            'macd_hist': macd_hist,
-            'prev_macd_hist': data['prev_macd_hist']
-        })
-
         tp_pct = ((take_profit - entry) / entry) * 100 if direction == "LONG" else ((entry - take_profit) / entry) * 100
         sl_pct = abs((stop_loss - entry) / entry) * 100
         rr = abs(tp_pct / sl_pct) if sl_pct > 0 else 0
 
         lot_size = tracker.get_lot_size(confidence)
-        position_value = 1000 * lot_size
 
-        msg = f"""
-{EMOJI['signal']} <b>Signal Alert</b>
+        # Generate signal chart
+        try:
+            chart_buffer = charts.generate_signal_chart(
+                current_price, entry, take_profit, stop_loss, direction, confidence
+            )
 
-{direction_emoji} <b>{direction}</b> SPY
+            # Simple caption for chart
+            caption = f"""
+{direction_emoji} <b>{direction} SPY</b>
 
-<b>Entry:</b> <code>${entry:,.2f}</code>
-<b>Take Profit:</b> <code>${take_profit:,.2f}</code> ({tp_pct:+.2f}%)
-<b>Stop Loss:</b> <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
-<b>Risk/Reward:</b> 1:{rr:.1f}
-<b>Confidence:</b> {confidence:.0f}%
+Entry: ${entry:,.0f}
+Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
 
-<b>Position Size:</b>
-• Lot: {lot_size} ({lot_size*100:.0f}% of account)
-• Value: ${position_value:,.0f}
+Confidence: {confidence:.0f}%
+Risk/Reward: 1:{rr:.1f}
 
-<b>Analysis:</b>
-{explanation}
-
-• RSI: {rsi:.1f}
-• MACD: {'Bullish' if macd_hist > 0 else 'Bearish'}
-• VIX: {economic_data.get('vix', 20):.1f}
-
-{get_hashtags('signal')}
+#SP500 #Trading
 """
-        return send_telegram(msg)
+            return send_telegram_photo(chart_buffer, caption)
+
+        except Exception as e:
+            print(f"Chart error: {e}")
+            # Fallback to text
+            msg = f"""
+{direction_emoji} <b>{direction} SPY</b>
+
+Entry: ${entry:,.0f}
+Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
+
+Confidence: {confidence:.0f}%
+
+#SP500 #Trading
+"""
+            return send_telegram(msg)
     else:
         print(f"Confidence {confidence:.1f}% below threshold {MIN_CONFIDENCE}%")
         return False
 
 
 def post_market_close():
-    """Post market close with recap."""
+    """Post simple market close recap."""
     print("Posting market close...")
 
     data = get_current_data()
     daily_perf = tracker.get_daily_performance()
 
     if not data:
-        msg = f"""
-{EMOJI['bell']} <b>MARKET CLOSED</b>
+        return send_telegram("🔔 <b>Market Closed</b>\n\nSee you tomorrow!\n\n#SP500")
 
-US Market is now closed!
-See you tomorrow! 👋
+    change_emoji = "📈" if data['change_pct'] > 0 else ("📉" if data['change_pct'] < 0 else "➡️")
 
-{get_hashtags('close')}
-"""
-        return send_telegram(msg)
-
-    # Get sentiment
-    if data['change_pct'] > 0:
-        sentiment = 'bullish'
-    elif data['change_pct'] < 0:
-        sentiment = 'bearish'
-    else:
-        sentiment = 'neutral'
-
-    # Format signal performance
+    # Signal performance
     if daily_perf['trades'] > 0:
-        signal_text = f"Trades: {daily_perf['trades']} | Win Rate: {daily_perf['win_rate']:.0f}% | P&L: {daily_perf['total_pnl_pct']:+.2f}%"
+        signal_text = f"Signals: {daily_perf['trades']} | {daily_perf['win_rate']:.0f}% win"
     else:
-        signal_text = "No signals today"
+        signal_text = ""
 
     msg = f"""
-{mentor.get_greeting('close')}
+🔔 <b>Market Close</b>
 
-{EMOJI['bell']} <b>Market Close Recap - {datetime.now().strftime('%B %d, %Y')}</b>
+{change_emoji} ${data['close']:,.0f} ({data['change_pct']:+.1f}%)
 
-<b>Final Score:</b>
-• Close: <code>${data['close']:,.2f}</code>
-• Change: {data['change']:+.2f} ({data['change_pct']:+.2f}%)
-• High: <code>${data['high']:,.2f}</code>
-• Low: <code>${data['low']:,.2f}</code>
+High: ${data['high']:,.0f}
+Low: ${data['low']:,.0f}
 
-<b>Technical Status:</b>
-• RSI: {data['rsi']:.1f}
-• MACD: {'Bullish' if data['macd_hist'] > 0 else 'Bearish'}
+RSI: {data['rsi']:.0f} | MACD: {'Up' if data['macd_hist'] > 0 else 'Down'}
 
-<b>Today's Signals:</b>
 {signal_text}
 
-{mentor.get_closing_thought(sentiment)}
-
-Rest up, traders! See you tomorrow! 🌙
-
-{get_hashtags('close')}
+#SP500 #Close
 """
     return send_telegram(msg)
 
@@ -881,36 +858,84 @@ Stay strong, stay disciplined. The next winner is coming! 💪
     return send_telegram(msg)
 
 
+def send_telegram_photo_url(photo_url: str, caption: str = "") -> bool:
+    """Send photo from URL to Telegram channel."""
+    if not TELEGRAM_BOT_TOKEN:
+        return False
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    data = {
+        'chat_id': TELEGRAM_CHAT_ID,
+        'photo': photo_url,
+        'caption': caption[:1024],
+        'parse_mode': 'HTML'
+    }
+
+    try:
+        response = requests.post(url, data=data, timeout=30)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Error sending photo URL: {e}")
+        return False
+
+
 def post_news():
-    """Post market news update."""
+    """Post market news with image."""
     print("Posting market news...")
 
     news_items = news.get_market_news(limit=5)
-    sentiment = news.get_market_sentiment()
 
-    # Add sentiment to the post
-    if sentiment['article_count'] > 0:
-        sent_emoji = '🟢' if sentiment['overall'] == 'BULLISH' else ('🔴' if sentiment['overall'] == 'BEARISH' else '⚪')
-        sentiment_text = f"\n<b>News Sentiment:</b> {sent_emoji} {sentiment['overall']}\n({sentiment['bullish_pct']:.0f}% bullish, {sentiment['bearish_pct']:.0f}% bearish)\n"
-    else:
-        sentiment_text = ""
+    if not news_items:
+        return send_telegram("📰 <b>News</b>\n\nNo news available.\n\n#SP500")
 
-    msg = format_news_post(news_items, "Market News Update")
-    msg += sentiment_text
-    msg += f"\n{get_hashtags('signal')}"
+    # Get first news item with image
+    main_news = news_items[0]
+    image_url = main_news.get('image', '')
 
-    return send_telegram(msg)
+    # Build simple news list
+    news_lines = []
+    for i, item in enumerate(news_items[:4], 1):
+        headline = item.get('headline', '')[:80]
+        source = item.get('source', '')
+        news_lines.append(f"{i}. {headline}\n   — {source}")
+
+    caption = f"""
+📰 <b>Market News</b>
+
+{chr(10).join(news_lines)}
+
+#SP500 #News
+"""
+
+    # Try to send with image
+    if image_url:
+        result = send_telegram_photo_url(image_url, caption)
+        if result:
+            return True
+
+    # Fallback to text
+    return send_telegram(caption)
 
 
 def post_earnings():
-    """Post upcoming earnings calendar."""
+    """Post simple earnings calendar."""
     print("Posting earnings calendar...")
 
     earnings = news.get_earnings_calendar()
-    msg = format_earnings_post(earnings)
-    msg += f"\n\n{get_hashtags('signal')}"
 
-    return send_telegram(msg)
+    if not earnings:
+        return send_telegram("📅 <b>Earnings</b>\n\nNo major earnings this week.\n\n#SP500")
+
+    lines = ["📅 <b>Upcoming Earnings</b>\n"]
+    for item in earnings[:5]:
+        symbol = item.get('symbol', '')
+        date = item.get('date', '')
+        timing = "AM" if item.get('hour') == 'bmo' else "PM"
+        lines.append(f"• {symbol} - {date} ({timing})")
+
+    lines.append("\n#SP500 #Earnings")
+
+    return send_telegram('\n'.join(lines))
 
 
 # ============================================
@@ -918,7 +943,7 @@ def post_earnings():
 # ============================================
 
 def post_ml_factor_analysis():
-    """Post factor analysis - what's driving the prediction."""
+    """Post factor analysis with visual chart."""
     print("Posting factor analysis...")
 
     data = get_current_data()
@@ -930,7 +955,6 @@ def post_ml_factor_analysis():
 
     prediction = ml_predictor.predict(df, economic_data)
     factors = ml_predictor.get_factor_analysis(df, economic_data)
-    tier = ml_predictor.get_confidence_tier(prediction['confidence'])
 
     if not factors:
         return False
@@ -939,42 +963,34 @@ def post_ml_factor_analysis():
     confidence = prediction['confidence']
     direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
 
-    rsi_emoji = '🟢' if factors['rsi']['signal'] == 'BULLISH' else ('🔴' if factors['rsi']['signal'] == 'BEARISH' else '⚪')
-    mom_emoji = '🟢' if factors['momentum']['signal'] == 'BULLISH' else ('🔴' if factors['momentum']['signal'] == 'BEARISH' else '🟡')
-    trend_emoji = '🟢' if factors['trend']['signal'] == 'BULLISH' else ('🔴' if factors['trend']['signal'] == 'BEARISH' else '🟡')
-    macd_emoji = '🟢' if factors['macd']['signal'] == 'BULLISH' else '🔴'
-    vix_emoji = '🟢' if factors['vix']['signal'] == 'GREED' else ('🔴' if factors['vix']['signal'] == 'FEAR' else '⚪')
+    # Generate factor chart
+    try:
+        chart_buffer = charts.generate_factor_chart(factors, direction, confidence)
 
-    msg = f"""
-{EMOJI['brain']} <b>Market Factor Analysis</b>
+        caption = f"""
+{direction_emoji} <b>{direction} Bias</b> | {confidence:.0f}% Confidence
 
-{mentor.get_greeting()}
+{factors['summary']['bullish_factors']} Bullish / {factors['summary']['bearish_factors']} Bearish
 
-{tier['emoji']} <b>Current Bias: {direction}</b> | Confidence: {confidence:.0f}%
+RSI: {factors['rsi']['value']:.0f} | VIX: {factors['vix']['value']:.1f}
 
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>What I'm Seeing:</b>
-
-{rsi_emoji} <b>RSI:</b> {factors['rsi']['value']:.1f} - {factors['rsi']['note']}
-{mom_emoji} <b>Momentum:</b> 5D: {factors['momentum']['value_5d']:+.2f}% | 20D: {factors['momentum']['value_20d']:+.2f}%
-{trend_emoji} <b>Trend:</b> {'Above' if factors['trend']['above_sma20'] else 'Below'} SMA20, {'Above' if factors['trend']['above_sma50'] else 'Below'} SMA50
-{macd_emoji} <b>MACD:</b> {factors['macd']['signal']} (Histogram: {factors['macd']['histogram']:.2f})
-{vix_emoji} <b>VIX:</b> {factors['vix']['value']:.1f} - {factors['vix']['note']}
-
-<b>Volatility:</b> {factors['volatility']['value_5d']:.2f}% (5D) | {'Expanding' if factors['volatility']['expanding'] else 'Contracting'}
-<b>Bollinger:</b> {factors['bollinger']['signal']} (Position: {factors['bollinger']['position']:.0%})
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Factor Count:</b> {factors['summary']['bullish_factors']} Bullish | {factors['summary']['bearish_factors']} Bearish
-<b>Overall Bias:</b> {factors['summary']['overall']}
-
-{mentor.get_closing_thought('bullish' if direction == 'LONG' else 'bearish')}
-
-#SP500 #TradingSignals #TechnicalAnalysis
+#SP500 #Analysis
 """
-    return send_telegram(msg)
+        return send_telegram_photo(chart_buffer, caption)
+
+    except Exception as e:
+        print(f"Chart error: {e}")
+        # Simple text fallback
+        msg = f"""
+{direction_emoji} <b>{direction}</b> | {confidence:.0f}%
+
+🟢 RSI: {factors['rsi']['value']:.0f}
+🟢 Trend: {'Up' if factors['trend']['above_sma20'] else 'Down'}
+🟢 MACD: {factors['macd']['signal']}
+
+#SP500 #Analysis
+"""
+        return send_telegram(msg)
 
 
 def post_ml_quick_scan():
@@ -1000,7 +1016,7 @@ def post_ml_quick_scan():
 
 
 def post_high_confidence_alert():
-    """Post ONLY if confidence >= 75% - elite signals."""
+    """Post ONLY if confidence >= 75% - elite signals with chart."""
     print("Checking for high confidence signal...")
 
     data = get_current_data()
@@ -1018,67 +1034,69 @@ def post_high_confidence_alert():
         print(f"Confidence {confidence:.1f}% below elite threshold (75%)")
         return False
 
-    tier = ml_predictor.get_confidence_tier(confidence)
-    factors = ml_predictor.get_factor_analysis(df, economic_data)
-    levels = ml_predictor.get_signal_levels(data['close'], direction, confidence)
+    current_price = data['close']
+    levels = ml_predictor.get_signal_levels(current_price, direction, confidence)
+    entry = levels['entry']
+    take_profit = levels['take_profit']
+    stop_loss = levels['stop_loss']
 
     direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
 
     signal = tracker.add_signal(
         direction=direction,
-        entry_price=levels['entry'],
-        take_profit=levels['take_profit'],
-        stop_loss=levels['stop_loss'],
+        entry_price=entry,
+        take_profit=take_profit,
+        stop_loss=stop_loss,
         confidence=confidence,
         ticker="SPY"
     )
 
-    lot_size = tracker.get_lot_size(confidence)
-    position_value = 1000 * lot_size
+    tp_pct = abs((take_profit - entry) / entry) * 100
+    sl_pct = abs((stop_loss - entry) / entry) * 100
+    rr = tp_pct / sl_pct if sl_pct > 0 else 0
 
-    tp_pct = abs((levels['take_profit'] - levels['entry']) / levels['entry']) * 100
-    sl_pct = abs((levels['stop_loss'] - levels['entry']) / levels['entry']) * 100
+    # Generate signal chart for high confidence
+    try:
+        chart_buffer = charts.generate_signal_chart(
+            current_price, entry, take_profit, stop_loss, direction, confidence
+        )
 
-    msg = f"""
-{tier['emoji']} <b>HIGH CONVICTION SETUP</b> {tier['emoji']}
+        caption = f"""
+🔥 <b>HIGH CONFIDENCE</b> 🔥
 
-{mentor.get_greeting()}
+{direction_emoji} <b>{direction} SPY</b>
 
-I'm seeing something really good here, traders!
+Entry: ${entry:,.0f}
+Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
 
-{direction_emoji} <b>{direction}</b> SPY
+Confidence: {confidence:.0f}%
+R/R: 1:{rr:.1f}
 
-<b>Confidence:</b> {confidence:.0f}%
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Entry:</b> <code>${levels['entry']:,.2f}</code>
-<b>Take Profit:</b> <code>${levels['take_profit']:,.2f}</code> (+{tp_pct:.2f}%)
-<b>Stop Loss:</b> <code>${levels['stop_loss']:,.2f}</code> (-{sl_pct:.2f}%)
-
-<b>Position:</b>
-• Lot: {lot_size} ({lot_size*100:.0f}%)
-• Value: ${position_value:,.0f}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Why I Like This Setup:</b>
-• RSI: {factors['rsi']['value']:.1f} ({factors['rsi']['signal']})
-• Momentum: {factors['momentum']['signal']}
-• Trend: {factors['trend']['signal']}
-• MACD: {factors['macd']['signal']}
-
-{EMOJI['fire']} <b>Multiple factors are aligning perfectly!</b>
-
-This is exactly the kind of setup I look for. Strong technicals, good momentum, and the trend is on our side.
-
-#SP500 #TradingSignals #HighConfidence
+#SP500 #Signal
 """
-    return send_telegram(msg)
+        return send_telegram_photo(chart_buffer, caption)
+
+    except Exception as e:
+        print(f"Chart error: {e}")
+        msg = f"""
+🔥 <b>HIGH CONFIDENCE</b> 🔥
+
+{direction_emoji} <b>{direction} SPY</b>
+
+Entry: ${entry:,.0f}
+Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
+
+Confidence: {confidence:.0f}%
+
+#SP500 #Signal
+"""
+        return send_telegram(msg)
 
 
 def post_ml_momentum():
-    """Post momentum update with trend analysis."""
+    """Post momentum update with visual chart."""
     print("Posting momentum update...")
 
     data = get_current_data()
@@ -1099,66 +1117,54 @@ def post_ml_momentum():
     mom_20d = factors['momentum']['value_20d']
 
     if mom_5d > 1 and mom_20d > 2:
-        mom_status = "STRONG UPTREND"
+        mom_status = "STRONG UP"
         mom_emoji = "🚀"
     elif mom_5d > 0 and mom_20d > 0:
         mom_status = "UPTREND"
         mom_emoji = "📈"
     elif mom_5d < -1 and mom_20d < -2:
-        mom_status = "STRONG DOWNTREND"
+        mom_status = "STRONG DOWN"
         mom_emoji = "📉"
     elif mom_5d < 0 and mom_20d < 0:
         mom_status = "DOWNTREND"
         mom_emoji = "⬇️"
     else:
-        mom_status = "CONSOLIDATING"
+        mom_status = "SIDEWAYS"
         mom_emoji = "↔️"
 
-    vol = factors['volatility']['value_5d']
-    if vol > 1.5:
-        vol_status = "HIGH - Be careful with position sizing"
-    elif vol > 1.0:
-        vol_status = "ELEVATED - Normal market conditions"
-    else:
-        vol_status = "LOW - Good for trend following"
+    # Generate momentum chart
+    try:
+        chart_buffer = charts.generate_momentum_chart(df, direction, confidence)
 
-    msg = f"""
-{mom_emoji} <b>Momentum Update</b>
+        caption = f"""
+{mom_emoji} <b>{mom_status}</b>
 
-{mentor.get_greeting()}
+{direction_emoji} {direction} | {confidence:.0f}%
 
-<b>Current Trend:</b> {mom_status}
+5-Day: {mom_5d:+.1f}%
+20-Day: {mom_20d:+.1f}%
 
-<b>My Bias:</b> {direction_emoji} {direction} ({confidence:.0f}%)
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Momentum Breakdown:</b>
-• 5-Day: {mom_5d:+.2f}%
-• 20-Day: {mom_20d:+.2f}%
-
-<b>Price vs Moving Averages:</b>
-• vs SMA 20: {'Above' if factors['trend']['above_sma20'] else 'Below'} (${factors['trend']['sma_20']:,.2f})
-• vs SMA 50: {'Above' if factors['trend']['above_sma50'] else 'Below'} (${factors['trend']['sma_50']:,.2f})
-
-<b>Volatility:</b> {vol:.2f}%
-{vol_status}
-
-<b>MACD:</b> {factors['macd']['signal']}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-{'Momentum is aligned with my analysis!' if (mom_5d > 0 and direction == 'LONG') or (mom_5d < 0 and direction == 'SHORT') else 'Watching for momentum to confirm direction.'}
-
-Stay patient, traders! 💪
-
-#SP500 #Momentum #TrendAnalysis
+#SP500 #Momentum
 """
-    return send_telegram(msg)
+        return send_telegram_photo(chart_buffer, caption)
+
+    except Exception as e:
+        print(f"Chart error: {e}")
+        msg = f"""
+{mom_emoji} <b>{mom_status}</b>
+
+{direction_emoji} {direction} | {confidence:.0f}%
+
+5-Day: {mom_5d:+.1f}%
+20-Day: {mom_20d:+.1f}%
+
+#SP500 #Momentum
+"""
+        return send_telegram(msg)
 
 
 def post_ml_risk_assessment():
-    """Post risk assessment."""
+    """Post simple risk check."""
     print("Posting risk assessment...")
 
     data = get_current_data()
@@ -1171,92 +1177,38 @@ def post_ml_risk_assessment():
     prediction = ml_predictor.predict(df, economic_data)
     factors = ml_predictor.get_factor_analysis(df, economic_data)
 
-    risk_score = 0
-
     vix = factors['vix']['value']
-    if vix > 30:
-        risk_score += 3
-        vix_risk = "EXTREME"
-    elif vix > 25:
-        risk_score += 2
-        vix_risk = "HIGH"
-    elif vix > 20:
-        risk_score += 1
-        vix_risk = "MODERATE"
-    else:
-        vix_risk = "LOW"
-
     vol = factors['volatility']['value_5d']
-    if vol > 2:
-        risk_score += 2
-        vol_risk = "HIGH"
-    elif vol > 1:
-        risk_score += 1
-        vol_risk = "MODERATE"
-    else:
-        vol_risk = "LOW"
 
-    bb_pos = factors['bollinger']['position']
-    if bb_pos > 0.9 or bb_pos < 0.1:
-        risk_score += 1
-        bb_risk = "EXTREME ZONE"
-    elif bb_pos > 0.8 or bb_pos < 0.2:
-        bb_risk = "CAUTION ZONE"
-    else:
-        bb_risk = "NORMAL"
-
-    if risk_score >= 5:
-        overall_risk = "HIGH"
+    # Calculate risk level
+    if vix > 25 or vol > 1.5:
         risk_emoji = "🔴"
-        lot_advice = "I'd recommend 0.1-0.2 lots max"
-    elif risk_score >= 3:
-        overall_risk = "MODERATE"
+        risk_level = "HIGH"
+        advice = "Small positions only"
+    elif vix > 20 or vol > 1.0:
         risk_emoji = "🟡"
-        lot_advice = "Standard lot sizing should be fine"
+        risk_level = "MEDIUM"
+        advice = "Normal trading"
     else:
-        overall_risk = "LOW"
         risk_emoji = "🟢"
-        lot_advice = "Normal lot sizing is appropriate"
+        risk_level = "LOW"
+        advice = "Good conditions"
 
-    confidence = prediction['confidence']
     direction = prediction['direction']
+    confidence = prediction['confidence']
+    direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
 
     msg = f"""
-{risk_emoji} <b>Risk Check</b>
+{risk_emoji} <b>Risk: {risk_level}</b>
 
-{mentor.get_greeting()}
+VIX: {vix:.1f}
+Volatility: {vol:.1f}%
 
-<b>Overall Risk Level:</b> {overall_risk}
-<b>Risk Score:</b> {risk_score}/6
+{direction_emoji} {direction} | {confidence:.0f}%
 
-━━━━━━━━━━━━━━━━━━━━━━
+{advice}
 
-<b>What I'm Watching:</b>
-
-{EMOJI['warning'] if vix_risk in ['HIGH', 'EXTREME'] else '✅'} <b>VIX:</b> {vix:.1f} ({vix_risk})
-{EMOJI['warning'] if vol_risk == 'HIGH' else '✅'} <b>Volatility:</b> {vol:.2f}% ({vol_risk})
-{EMOJI['warning'] if 'EXTREME' in bb_risk else '✅'} <b>Bollinger:</b> {bb_risk}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Current Bias:</b>
-Direction: {direction}
-Confidence: {confidence:.0f}%
-
-<b>My Advice:</b>
-{lot_advice}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-<b>Remember:</b>
-• Always use stop losses
-• Never risk more than 2% per trade
-• Reduce size in high volatility
-• Don't chase losses
-
-Stay disciplined! 💪
-
-#SP500 #RiskManagement #TradingTips
+#SP500 #Risk
 """
     return send_telegram(msg)
 

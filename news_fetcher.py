@@ -24,7 +24,7 @@ class NewsFetcher:
         self.finnhub_key = FINNHUB_KEY
 
     def get_market_news(self, limit: int = 5) -> List[Dict]:
-        """Get general market news."""
+        """Get general market news with images."""
         news = []
 
         # Try Finnhub first (free tier: 60 calls/min)
@@ -44,6 +44,7 @@ class NewsFetcher:
                             'summary': item.get('summary', '')[:200],
                             'source': item.get('source', 'Finnhub'),
                             'url': item.get('url', ''),
+                            'image': item.get('image', ''),  # Image URL
                             'datetime': datetime.fromtimestamp(item.get('datetime', 0))
                         })
                     if news:

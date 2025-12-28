@@ -722,3 +722,273 @@ class ChartGenerator:
 def create_chart_generator() -> ChartGenerator:
     """Create and return a ChartGenerator instance."""
     return ChartGenerator()
+
+
+# Add these methods to ChartGenerator class
+ChartGenerator.generate_signal_chart = lambda self, current_price, entry, take_profit, stop_loss, direction, confidence: _generate_signal_chart(self, current_price, entry, take_profit, stop_loss, direction, confidence)
+ChartGenerator.generate_factor_chart = lambda self, factors, direction, confidence: _generate_factor_chart(self, factors, direction, confidence)
+ChartGenerator.generate_momentum_chart = lambda self, df, direction, confidence: _generate_momentum_chart(self, df, direction, confidence)
+
+
+def _generate_signal_chart(self, current_price: float, entry: float,
+                           take_profit: float, stop_loss: float,
+                           direction: str, confidence: float) -> BytesIO:
+    """Generate simple signal chart showing entry, TP, SL levels."""
+
+    fig, ax = plt.subplots(figsize=(10, 6), facecolor=COLORS['background'])
+    ax.set_facecolor(COLORS['background'])
+
+    # Calculate price range
+    all_prices = [entry, take_profit, stop_loss]
+    price_min = min(all_prices) * 0.998
+    price_max = max(all_prices) * 1.002
+
+    # Colors
+    tp_color = '#00e676'  # Green
+    sl_color = '#ff5252'  # Red
+    entry_color = '#ffeb3b'  # Yellow
+    price_color = '#2196f3'  # Blue
+
+    # Draw horizontal lines for levels
+    ax.axhline(y=take_profit, color=tp_color, linewidth=3, linestyle='-', alpha=0.9)
+    ax.axhline(y=entry, color=entry_color, linewidth=3, linestyle='-', alpha=0.9)
+    ax.axhline(y=stop_loss, color=sl_color, linewidth=3, linestyle='-', alpha=0.9)
+    ax.axhline(y=current_price, color=price_color, linewidth=2, linestyle='--', alpha=0.7)
+
+    # Fill zones
+    if direction == "LONG":
+        ax.fill_between([0, 1], entry, take_profit, color=tp_color, alpha=0.15)
+        ax.fill_between([0, 1], stop_loss, entry, color=sl_color, alpha=0.15)
+    else:
+        ax.fill_between([0, 1], take_profit, entry, color=tp_color, alpha=0.15)
+        ax.fill_between([0, 1], entry, stop_loss, color=sl_color, alpha=0.15)
+
+    # Labels on the right
+    ax.text(1.02, take_profit, f'  TP ${take_profit:,.0f}', fontsize=14,
+           color=tp_color, va='center', fontweight='bold', transform=ax.get_yaxis_transform())
+    ax.text(1.02, entry, f'  ENTRY ${entry:,.0f}', fontsize=14,
+           color=entry_color, va='center', fontweight='bold', transform=ax.get_yaxis_transform())
+    ax.text(1.02, stop_loss, f'  SL ${stop_loss:,.0f}', fontsize=14,
+           color=sl_color, va='center', fontweight='bold', transform=ax.get_yaxis_transform())
+    ax.text(1.02, current_price, f'  NOW ${current_price:,.0f}', fontsize=12,
+           color=price_color, va='center', transform=ax.get_yaxis_transform())
+
+    # Calculate percentages
+    tp_pct = ((take_profit - entry) / entry) * 100 if direction == "LONG" else ((entry - take_profit) / entry) * 100
+    sl_pct = abs((stop_loss - entry) / entry) * 100
+
+    # Title with direction arrow
+    arrow = "↑" if direction == "LONG" else "↓"
+    title_color = tp_color if direction == "LONG" else sl_color
+    ax.set_title(f'{arrow} {direction} SIGNAL | {confidence:.0f}% Confidence',
+                fontsize=18, color=title_color, fontweight='bold', pad=20)
+
+    # Info box
+    info_text = f'+{tp_pct:.1f}% profit target\n-{sl_pct:.1f}% stop loss'
+    ax.text(0.5, 0.95, info_text, transform=ax.transAxes, fontsize=12,
+           va='top', ha='center', color=COLORS['text_primary'],
+           bbox=dict(boxstyle='round', facecolor=COLORS['panel_bg'], alpha=0.8))
+
+    # Clean up axes
+    ax.set_xlim(0, 1)
+    ax.set_ylim(price_min, price_max)
+    ax.set_xticks([])
+    ax.yaxis.tick_right()
+    ax.yaxis.set_label_position('right')
+    ax.tick_params(axis='y', colors=COLORS['text_secondary'], labelsize=10)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['right'].set_color(COLORS['grid'])
+
+    # Watermark
+    fig.text(0.99, 0.01, '@lkiwanSP500', fontsize=11,
+            color=COLORS['text_muted'], alpha=0.8,
+            ha='right', va='bottom', fontfamily='monospace',
+            fontweight='bold')
+
+    plt.tight_layout()
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=self.dpi,
+               facecolor=COLORS['background'],
+               edgecolor='none', bbox_inches='tight')
+    buffer.seek(0)
+    plt.close(fig)
+
+    return buffer
+
+
+def _generate_factor_chart(self, factors: dict, direction: str, confidence: float) -> BytesIO:
+    """Generate visual factor analysis chart with bars."""
+
+    fig, ax = plt.subplots(figsize=(10, 7), facecolor=COLORS['background'])
+    ax.set_facecolor(COLORS['background'])
+
+    # Factor data
+    factor_names = ['RSI', 'Momentum', 'Trend', 'MACD', 'VIX']
+
+    # Convert signals to scores (-1 to 1)
+    scores = []
+
+    # RSI
+    rsi_val = factors['rsi']['value']
+    if rsi_val < 30:
+        scores.append(0.8)  # Oversold = bullish
+    elif rsi_val > 70:
+        scores.append(-0.8)  # Overbought = bearish
+    else:
+        scores.append((50 - rsi_val) / 50 * 0.5)
+
+    # Momentum
+    mom = factors['momentum']['value_5d']
+    scores.append(min(max(mom / 2, -1), 1))
+
+    # Trend
+    if factors['trend']['above_sma20'] and factors['trend']['above_sma50']:
+        scores.append(0.9)
+    elif not factors['trend']['above_sma20'] and not factors['trend']['above_sma50']:
+        scores.append(-0.9)
+    else:
+        scores.append(0.3 if factors['trend']['above_sma20'] else -0.3)
+
+    # MACD
+    macd_hist = factors['macd']['histogram']
+    scores.append(min(max(macd_hist / 20, -1), 1))
+
+    # VIX (inverted - low VIX = bullish)
+    vix = factors['vix']['value']
+    if vix < 15:
+        scores.append(0.8)
+    elif vix > 30:
+        scores.append(-0.8)
+    else:
+        scores.append((20 - vix) / 15)
+
+    # Assign colors based on score
+    colors = []
+    for score in scores:
+        if score > 0.2:
+            colors.append('#00e676')  # Green
+        elif score < -0.2:
+            colors.append('#ff5252')  # Red
+        else:
+            colors.append('#ffeb3b')  # Yellow
+
+    y_pos = range(len(factor_names))
+
+    # Draw horizontal bars
+    bars = ax.barh(y_pos, scores, color=colors, height=0.6, alpha=0.85)
+
+    # Add value labels
+    for i, (bar, score, name) in enumerate(zip(bars, scores, factor_names)):
+        label = "BULLISH" if score > 0.2 else ("BEARISH" if score < -0.2 else "NEUTRAL")
+        x_pos = score + 0.05 if score >= 0 else score - 0.05
+        ha = 'left' if score >= 0 else 'right'
+        ax.text(x_pos, i, label, va='center', ha=ha, fontsize=11,
+               color=COLORS['text_primary'], fontweight='bold')
+
+    # Styling
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(factor_names, fontsize=13, color=COLORS['text_primary'], fontweight='bold')
+    ax.set_xlim(-1.2, 1.2)
+    ax.axvline(x=0, color=COLORS['grid'], linewidth=1, linestyle='-')
+    ax.set_xlabel('← BEARISH | BULLISH →', fontsize=11, color=COLORS['text_secondary'])
+
+    # Title
+    arrow = "↑" if direction == "LONG" else "↓"
+    title_color = '#00e676' if direction == "LONG" else '#ff5252'
+    ax.set_title(f'{arrow} {direction} | {confidence:.0f}% Confidence\nFactor Analysis',
+                fontsize=16, color=title_color, fontweight='bold', pad=15)
+
+    # Remove spines
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.tick_params(axis='x', colors=COLORS['text_muted'], labelsize=9)
+
+    # Summary box
+    bullish = sum(1 for s in scores if s > 0.2)
+    bearish = sum(1 for s in scores if s < -0.2)
+    ax.text(0.98, 0.02, f'{bullish} Bullish | {bearish} Bearish',
+           transform=ax.transAxes, fontsize=11, va='bottom', ha='right',
+           color=COLORS['text_primary'], fontweight='bold')
+
+    # Watermark
+    fig.text(0.99, 0.01, '@lkiwanSP500', fontsize=11,
+            color=COLORS['text_muted'], alpha=0.8,
+            ha='right', va='bottom', fontfamily='monospace',
+            fontweight='bold')
+
+    plt.tight_layout()
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=self.dpi,
+               facecolor=COLORS['background'],
+               edgecolor='none', bbox_inches='tight')
+    buffer.seek(0)
+    plt.close(fig)
+
+    return buffer
+
+
+def _generate_momentum_chart(self, df: pd.DataFrame, direction: str, confidence: float) -> BytesIO:
+    """Generate simple momentum chart with trend arrows."""
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), facecolor=COLORS['background'],
+                                    gridspec_kw={'height_ratios': [2, 1], 'hspace': 0.1})
+
+    # Use last 20 days
+    df = df.tail(20).copy()
+    x = range(len(df))
+
+    # Price chart
+    ax1.set_facecolor(COLORS['background'])
+    ax1.fill_between(x, df['close'].min() * 0.99, df['close'], alpha=0.3,
+                    color='#00e676' if direction == 'LONG' else '#ff5252')
+    ax1.plot(x, df['close'], color='white', linewidth=2)
+
+    # Moving average
+    if len(df) >= 10:
+        ma = df['close'].rolling(10).mean()
+        ax1.plot(x, ma, color='#ffeb3b', linewidth=1.5, linestyle='--', label='10 MA')
+
+    # Arrow showing direction
+    arrow_color = '#00e676' if direction == 'LONG' else '#ff5252'
+    arrow_direction = '↑' if direction == 'LONG' else '↓'
+    ax1.text(0.95, 0.85, arrow_direction, transform=ax1.transAxes, fontsize=50,
+            color=arrow_color, fontweight='bold', ha='right', va='top', alpha=0.8)
+
+    ax1.set_title(f'S&P 500 Momentum | {direction} Bias', fontsize=14,
+                 color=COLORS['text_primary'], fontweight='bold')
+    ax1.set_xticklabels([])
+    ax1.tick_params(axis='y', colors=COLORS['text_secondary'])
+    for spine in ax1.spines.values():
+        spine.set_visible(False)
+
+    # Momentum bars
+    ax2.set_facecolor(COLORS['background'])
+    returns = df['close'].pct_change() * 100
+    bar_colors = ['#00e676' if r > 0 else '#ff5252' for r in returns]
+    ax2.bar(x, returns, color=bar_colors, alpha=0.8)
+    ax2.axhline(y=0, color=COLORS['grid'], linewidth=1)
+    ax2.set_ylabel('Daily %', fontsize=10, color=COLORS['text_secondary'])
+    ax2.tick_params(colors=COLORS['text_secondary'])
+    for spine in ax2.spines.values():
+        spine.set_visible(False)
+
+    # Watermark
+    fig.text(0.99, 0.01, '@lkiwanSP500', fontsize=11,
+            color=COLORS['text_muted'], alpha=0.8,
+            ha='right', va='bottom', fontfamily='monospace',
+            fontweight='bold')
+
+    plt.tight_layout()
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=self.dpi,
+               facecolor=COLORS['background'],
+               edgecolor='none', bbox_inches='tight')
+    buffer.seek(0)
+    plt.close(fig)
+
+    return buffer
