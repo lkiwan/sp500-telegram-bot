@@ -565,15 +565,18 @@ def post_signal_check():
                 current_price, entry, take_profit, stop_loss, direction, confidence
             )
 
-            # Professional caption with emojis and reasons
+            # Professional caption with all info
             if direction == "LONG":
                 caption = f"""
 🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
-💰 <b>Why:</b> {reason_text}
+💵 Entry: <code>${entry:,.2f}</code>
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 
-⚡ Confidence: {confidence:.0f}%
-📊 Risk/Reward: 1:{rr:.1f}
+📊 Lot Size: <b>{lot_size}</b>
+⚡ Confidence: <b>{confidence:.0f}%</b>
+📈 Risk/Reward: <b>1:{rr:.1f}</b>
 
 #SP500 #Trading #StockMarket #SPY #TradingSignals #BuySignal #TechnicalAnalysis #DayTrading #SwingTrading #WallStreet
 """
@@ -581,10 +584,13 @@ def post_signal_check():
                 caption = f"""
 🔴📉 <b>SELL SIGNAL</b> 📉🔴
 
-💰 <b>Why:</b> {reason_text}
+💵 Entry: <code>${entry:,.2f}</code>
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 
-⚡ Confidence: {confidence:.0f}%
-📊 Risk/Reward: 1:{rr:.1f}
+📊 Lot Size: <b>{lot_size}</b>
+⚡ Confidence: <b>{confidence:.0f}%</b>
+📉 Risk/Reward: <b>1:{rr:.1f}</b>
 
 #SP500 #Trading #StockMarket #SPY #TradingSignals #SellSignal #TechnicalAnalysis #DayTrading #SwingTrading #WallStreet
 """
@@ -597,12 +603,11 @@ def post_signal_check():
                 msg = f"""
 🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
-Entry: ${entry:,.2f}
-Target: ${take_profit:,.2f} (+{tp_pct:.1f}%)
-Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
+💵 Entry: <code>${entry:,.2f}</code>
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 
-💰 <b>Why:</b> {reason_text}
-⚡ Confidence: {confidence:.0f}%
+📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📈 R/R 1:{rr:.1f}
 
 #SP500 #Trading #BuySignal #SPY
 """
@@ -610,12 +615,11 @@ Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
                 msg = f"""
 🔴📉 <b>SELL SIGNAL</b> 📉🔴
 
-Entry: ${entry:,.2f}
-Target: ${take_profit:,.2f} (+{tp_pct:.1f}%)
-Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
+💵 Entry: <code>${entry:,.2f}</code>
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 
-💰 <b>Why:</b> {reason_text}
-⚡ Confidence: {confidence:.0f}%
+📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📉 R/R 1:{rr:.1f}
 
 #SP500 #Trading #SellSignal #SPY
 """
