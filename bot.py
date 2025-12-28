@@ -19,6 +19,7 @@ from chart_generator import ChartGenerator
 from commentary_engine import TradingMentor, POST_TEMPLATES
 from signal_tracker import SignalTracker
 from branding import post_welcome_message, post_logo, post_banner, get_channel_description
+from news_fetcher import NewsFetcher, format_news_post, format_earnings_post
 
 # Configuration from GitHub Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -32,6 +33,7 @@ MIN_CONFIDENCE = 60
 charts = ChartGenerator()
 mentor = TradingMentor()
 tracker = SignalTracker("data/signals.json", initial_capital=1000.0)
+news = NewsFetcher()
 
 
 def send_telegram(text: str) -> bool:
@@ -727,6 +729,38 @@ def post_test():
     return send_telegram("✅ Professional Bot is working!")
 
 
+def post_news():
+    """Post market news update."""
+    print("Posting market news...")
+
+    news_items = news.get_market_news(limit=5)
+    sentiment = news.get_market_sentiment()
+
+    # Add sentiment to the post
+    if sentiment['article_count'] > 0:
+        sent_emoji = '🟢' if sentiment['overall'] == 'BULLISH' else ('🔴' if sentiment['overall'] == 'BEARISH' else '⚪')
+        sentiment_text = f"\n<b>News Sentiment:</b> {sent_emoji} {sentiment['overall']}\n({sentiment['bullish_pct']:.0f}% bullish, {sentiment['bearish_pct']:.0f}% bearish)\n"
+    else:
+        sentiment_text = ""
+
+    msg = format_news_post(news_items, "Market News Update")
+    msg += sentiment_text
+    msg += f"\n{get_hashtags('signal')}"
+
+    return send_telegram(msg)
+
+
+def post_earnings():
+    """Post upcoming earnings calendar."""
+    print("Posting earnings calendar...")
+
+    earnings = news.get_earnings_calendar()
+    msg = format_earnings_post(earnings)
+    msg += f"\n\n{get_hashtags('signal')}"
+
+    return send_telegram(msg)
+
+
 # ============================================
 # COMMAND ROUTING
 # ============================================
@@ -754,6 +788,9 @@ COMMANDS = {
     'welcome': post_welcome_message,
     'logo': post_logo,
     'banner': post_banner,
+    # News
+    'news': post_news,
+    'earnings': post_earnings,
 }
 
 

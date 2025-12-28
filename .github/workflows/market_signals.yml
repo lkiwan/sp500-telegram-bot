@@ -57,6 +57,8 @@ on:
           - welcome
           - logo
           - banner
+          - news
+          - earnings
 
 jobs:
   run-bot:
