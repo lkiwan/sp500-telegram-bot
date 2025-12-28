@@ -2,19 +2,33 @@ name: S&P 500 Telegram Bot
 
 on:
   schedule:
-    # Every 15 minutes during market hours (14:00-21:00 UTC, Mon-Fri)
-    - cron: '*/15 14-21 * * 1-5'
-    # Market Open - 9:30 AM ET = 14:30 UTC
+    # ===== MARKET HOURS (Mon-Fri) =====
+    # Market Open - 14:30 UTC (9:30 AM ET)
     - cron: '30 14 * * 1-5'
-    # Market Close - 4:00 PM ET = 21:00 UTC
+    # Market Close - 21:00 UTC (4:00 PM ET)
     - cron: '0 21 * * 1-5'
+
+    # ===== SIGNAL CHECKS - Every 15 min during market hours =====
+    - cron: '*/15 14-21 * * 1-5'
+
+    # ===== FUNDAMENTAL ANALYSIS POSTS =====
+    # Morning Economic Indicators - 14:00 UTC (9:00 AM ET)
+    - cron: '0 14 * * 1-5'
+    # Mid-morning Sentiment - 15:30 UTC (10:30 AM ET)
+    - cron: '30 15 * * 1-5'
+    # Lunch Technical Analysis - 17:00 UTC (12:00 PM ET)
+    - cron: '0 17 * * 1-5'
+    # Afternoon Events - 18:30 UTC (1:30 PM ET)
+    - cron: '30 18 * * 1-5'
+    # Pre-close Summary - 20:30 UTC (3:30 PM ET)
+    - cron: '30 20 * * 1-5'
 
   workflow_dispatch:
     inputs:
       command:
-        description: 'Command: predict, open, close, test'
+        description: 'Command: predict, open, close, economic, sentiment, events, technical, summary, test'
         required: true
-        default: 'predict'
+        default: 'test'
 
 jobs:
   run-bot:
@@ -42,42 +56,71 @@ jobs:
             HOUR=$(date -u +%H)
             MIN=$(date -u +%M)
 
-            # Check if it's market open time (14:30 UTC)
+            # Market Open (14:30)
             if [ "$HOUR" == "14" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
               echo "cmd=open" >> $GITHUB_OUTPUT
-            # Check if it's market close time (21:00 UTC)
+            # Market Close (21:00)
             elif [ "$HOUR" == "21" ] && [ "$MIN" -le "5" ]; then
               echo "cmd=close" >> $GITHUB_OUTPUT
-            # Otherwise, run prediction
+            # Morning Economic Indicators (14:00)
+            elif [ "$HOUR" == "14" ] && [ "$MIN" -le "5" ]; then
+              echo "cmd=economic" >> $GITHUB_OUTPUT
+            # Mid-morning Sentiment (15:30)
+            elif [ "$HOUR" == "15" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
+              echo "cmd=sentiment" >> $GITHUB_OUTPUT
+            # Lunch Technical (17:00)
+            elif [ "$HOUR" == "17" ] && [ "$MIN" -le "5" ]; then
+              echo "cmd=technical" >> $GITHUB_OUTPUT
+            # Afternoon Events (18:30)
+            elif [ "$HOUR" == "18" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
+              echo "cmd=events" >> $GITHUB_OUTPUT
+            # Pre-close Summary (20:30)
+            elif [ "$HOUR" == "20" ] && [ "$MIN" -ge "28" ] && [ "$MIN" -le "35" ]; then
+              echo "cmd=summary" >> $GITHUB_OUTPUT
+            # Default: Signal check
             else
               echo "cmd=predict" >> $GITHUB_OUTPUT
             fi
           fi
 
-      - name: Run Market Open
-        if: steps.command.outputs.cmd == 'open'
+      - name: Run Command
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python bot.py open
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          CMD="${{ steps.command.outputs.cmd }}"
+          echo "Running command: $CMD"
 
-      - name: Run Market Close
-        if: steps.command.outputs.cmd == 'close'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python bot.py close
-
-      - name: Run Prediction
-        if: steps.command.outputs.cmd == 'predict'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python predictor.py predict
-
-      - name: Run Test
-        if: steps.command.outputs.cmd == 'test'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python predictor.py test
+          case $CMD in
+            open)
+              python bot.py open
+              ;;
+            close)
+              python bot.py close
+              ;;
+            economic)
+              python fundamental_analysis.py economic
+              ;;
+            sentiment)
+              python fundamental_analysis.py sentiment
+              ;;
+            technical)
+              python fundamental_analysis.py technical
+              ;;
+            events)
+              python fundamental_analysis.py events
+              ;;
+            summary)
+              python fundamental_analysis.py summary
+              ;;
+            predict)
+              python predictor.py predict
+              ;;
+            test)
+              python predictor.py test
+              ;;
+            *)
+              echo "Unknown command: $CMD"
+              ;;
+          esac
