@@ -27,7 +27,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "@lkiwanSP500")
 FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
 
 # Thresholds
-MIN_CONFIDENCE = 60
+MIN_CONFIDENCE = 50
 
 # Initialize components
 charts = ChartGenerator()
