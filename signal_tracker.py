@@ -46,8 +46,44 @@ class SignalTracker:
                  initial_capital: float = 1000.0):
         self.data_file = data_file
         self.initial_capital = initial_capital
-        self.position_size_pct = 0.05  # 5% per trade
         self.data = self._load_data()
+
+    def get_lot_size(self, confidence: float) -> float:
+        """
+        Get dynamic lot size based on confidence level.
+
+        Returns lot size from 0.1 to 1.0 based on confidence:
+        - < 55%: 0.1 (10%)
+        - 55-60%: 0.2 (20%)
+        - 60-65%: 0.3 (30%)
+        - 65-70%: 0.4 (40%)
+        - 70-75%: 0.5 (50%)
+        - 75-80%: 0.6 (60%)
+        - 80-85%: 0.7 (70%)
+        - 85-90%: 0.8 (80%)
+        - 90-95%: 0.9 (90%)
+        - 95%+: 1.0 (100%)
+        """
+        if confidence < 55:
+            return 0.1
+        elif confidence < 60:
+            return 0.2
+        elif confidence < 65:
+            return 0.3
+        elif confidence < 70:
+            return 0.4
+        elif confidence < 75:
+            return 0.5
+        elif confidence < 80:
+            return 0.6
+        elif confidence < 85:
+            return 0.7
+        elif confidence < 90:
+            return 0.8
+        elif confidence < 95:
+            return 0.9
+        else:
+            return 1.0
 
     def _load_data(self) -> Dict:
         """Load signal history from file."""
@@ -133,15 +169,17 @@ class SignalTracker:
 
         self.data['signals'].append(asdict(signal))
 
-        # Calculate position size
+        # Calculate position size based on confidence (dynamic lot sizing)
+        lot_size = self.get_lot_size(confidence)
         portfolio_value = self.data['portfolio']['current_value']
-        position_value = portfolio_value * self.position_size_pct
+        position_value = portfolio_value * lot_size
 
         self.data['portfolio']['positions'].append({
             'signal_id': signal.id,
             'entry_value': position_value,
             'shares': position_value / entry_price,
-            'direction': direction.upper()
+            'direction': direction.upper(),
+            'lot_size': lot_size
         })
 
         self.save_data()

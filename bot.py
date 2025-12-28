@@ -577,6 +577,10 @@ def post_signal_check():
         sl_pct = abs((stop_loss - entry) / entry) * 100
         rr = abs(tp_pct / sl_pct) if sl_pct > 0 else 0
 
+        # Get lot size for display
+        lot_size = tracker.get_lot_size(confidence)
+        position_value = 1000 * lot_size  # Based on $1000 account
+
         msg = f"""
 {EMOJI['signal']} <b>Signal Alert</b>
 
@@ -587,6 +591,10 @@ def post_signal_check():
 <b>Stop Loss:</b> <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 <b>Risk/Reward:</b> 1:{rr:.1f}
 <b>Confidence:</b> {confidence:.0f}%
+
+<b>Position Size:</b>
+• Lot: {lot_size} ({lot_size*100:.0f}% of account)
+• Value: ${position_value:,.0f}
 
 <b>Why this setup:</b>
 {explanation}
@@ -817,8 +825,9 @@ def post_tp_hit(signal: dict):
     pnl_pct = signal.get('pnl_pct', 0)
     summary = tracker.get_performance_summary()
 
-    # Calculate dollar gain
-    position_value = summary['initial_capital'] * 0.05  # 5% position size
+    # Get lot size from signal confidence
+    lot_size = tracker.get_lot_size(signal.get('confidence', 60))
+    position_value = summary['initial_capital'] * lot_size
     dollar_gain = position_value * (pnl_pct / 100)
 
     msg = f"""
@@ -833,6 +842,7 @@ WE DID IT, TRADERS! 🎉
 <b>Entry:</b> ${signal['entry_price']:,.2f}
 <b>Exit:</b> ${signal['take_profit']:,.2f}
 <b>Profit:</b> <code>+{pnl_pct:.2f}%</code> 💰
+<b>Lot Size:</b> {lot_size} ({lot_size*100:.0f}%)
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -862,8 +872,9 @@ def post_sl_hit(signal: dict):
     pnl_pct = signal.get('pnl_pct', 0)
     summary = tracker.get_performance_summary()
 
-    # Calculate dollar loss
-    position_value = summary['initial_capital'] * 0.05  # 5% position size
+    # Get lot size from signal confidence
+    lot_size = tracker.get_lot_size(signal.get('confidence', 60))
+    position_value = summary['initial_capital'] * lot_size
     dollar_loss = position_value * (abs(pnl_pct) / 100)
 
     msg = f"""
@@ -876,6 +887,7 @@ Hey traders, it happens to the best of us.
 <b>Entry:</b> ${signal['entry_price']:,.2f}
 <b>Exit:</b> ${signal['stop_loss']:,.2f}
 <b>Loss:</b> <code>{pnl_pct:.2f}%</code>
+<b>Lot Size:</b> {lot_size} ({lot_size*100:.0f}%)
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
