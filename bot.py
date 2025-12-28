@@ -729,6 +729,183 @@ def post_test():
     return send_telegram("✅ Professional Bot is working!")
 
 
+def post_monitor():
+    """Monitor open signals and post alerts when near/hit targets."""
+    print("Monitoring open signals...")
+
+    data = get_current_data()
+    if not data:
+        print("Could not get market data")
+        return False
+
+    current_price = data['close']
+    alerts = tracker.check_all_signals(current_price)
+
+    if not alerts:
+        print("No alerts to post")
+        return False
+
+    for alert in alerts:
+        alert_type = alert['type']
+        signal = alert['signal']
+        price = alert['price']
+
+        if alert_type == 'NEAR_TP':
+            post_near_tp_alert(signal, price, alert.get('progress', 0))
+        elif alert_type == 'NEAR_SL':
+            post_near_sl_alert(signal, price, alert.get('progress', 0))
+        elif alert_type == 'TP_HIT':
+            post_tp_hit(signal)
+        elif alert_type == 'SL_HIT':
+            post_sl_hit(signal)
+
+    return True
+
+
+def post_near_tp_alert(signal: dict, current_price: float, progress: float):
+    """Post alert when price is near take profit."""
+    direction_emoji = EMOJI['bullish'] if signal['direction'] == 'LONG' else EMOJI['bearish']
+
+    msg = f"""
+{EMOJI['target']} <b>APPROACHING TARGET!</b> {EMOJI['target']}
+
+{direction_emoji} <b>{signal['direction']}</b> Signal
+
+{mentor.get_greeting()}
+
+We're getting close, traders!
+
+<b>Current Price:</b> ${current_price:,.2f}
+<b>Take Profit:</b> ${signal['take_profit']:,.2f}
+<b>Progress:</b> {progress:.0f}% of the way there!
+
+{EMOJI['fire']} Almost at our target! Stay focused!
+
+The market is moving in our favor. Let's see this through! 💪
+
+#SP500 #TradingSignals #InProfit
+"""
+    return send_telegram(msg)
+
+
+def post_near_sl_alert(signal: dict, current_price: float, progress: float):
+    """Post alert when price is near stop loss."""
+    direction_emoji = EMOJI['bullish'] if signal['direction'] == 'LONG' else EMOJI['bearish']
+
+    msg = f"""
+{EMOJI['warning']} <b>CAUTION - Near Stop Loss</b> {EMOJI['warning']}
+
+{direction_emoji} <b>{signal['direction']}</b> Signal
+
+Heads up, traders!
+
+<b>Current Price:</b> ${current_price:,.2f}
+<b>Stop Loss:</b> ${signal['stop_loss']:,.2f}
+<b>Risk Level:</b> {progress:.0f}% towards SL
+
+Stay calm. This is why we have stop losses - to protect our capital.
+
+Remember: One trade doesn't define us. It's about the long game! 🎯
+
+#SP500 #TradingSignals #RiskManagement
+"""
+    return send_telegram(msg)
+
+
+def post_tp_hit(signal: dict):
+    """Post celebration when take profit is hit."""
+    pnl_pct = signal.get('pnl_pct', 0)
+    summary = tracker.get_performance_summary()
+
+    # Calculate dollar gain
+    position_value = summary['initial_capital'] * 0.05  # 5% position size
+    dollar_gain = position_value * (pnl_pct / 100)
+
+    msg = f"""
+{EMOJI['trophy']}{EMOJI['fire']}{EMOJI['rocket']} <b>TARGET HIT!</b> {EMOJI['rocket']}{EMOJI['fire']}{EMOJI['trophy']}
+
+{EMOJI['win']} <b>{signal['direction']}</b> Signal SUCCESSFUL!
+
+{mentor.get_greeting()}
+
+WE DID IT, TRADERS! 🎉
+
+<b>Entry:</b> ${signal['entry_price']:,.2f}
+<b>Exit:</b> ${signal['take_profit']:,.2f}
+<b>Profit:</b> <code>+{pnl_pct:.2f}%</code> 💰
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+{EMOJI['money']} <b>SIMULATOR ACCOUNT UPDATE</b>
+
+<b>Starting Capital:</b> $1,000.00
+<b>Current Value:</b> ${summary['portfolio_value']:,.2f}
+<b>Total Return:</b> {summary['total_return_pct']:+.2f}%
+<b>This Trade:</b> +${dollar_gain:.2f}
+
+<b>Stats:</b>
+• Win Rate: {summary['win_rate']:.1f}%
+• Total Trades: {summary['total_trades']}
+• Wins: {summary['wins']} | Losses: {summary['losses']}
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+This is what discipline looks like! Great trade, everyone! 💪
+
+#SP500 #TradingSignals #Winner #Profit
+"""
+    return send_telegram(msg)
+
+
+def post_sl_hit(signal: dict):
+    """Post support message when stop loss is hit."""
+    pnl_pct = signal.get('pnl_pct', 0)
+    summary = tracker.get_performance_summary()
+
+    # Calculate dollar loss
+    position_value = summary['initial_capital'] * 0.05  # 5% position size
+    dollar_loss = position_value * (abs(pnl_pct) / 100)
+
+    msg = f"""
+{EMOJI['stop']} <b>STOP LOSS HIT</b>
+
+{EMOJI['loss']} <b>{signal['direction']}</b> Signal Stopped Out
+
+Hey traders, it happens to the best of us.
+
+<b>Entry:</b> ${signal['entry_price']:,.2f}
+<b>Exit:</b> ${signal['stop_loss']:,.2f}
+<b>Loss:</b> <code>{pnl_pct:.2f}%</code>
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+{EMOJI['money']} <b>SIMULATOR ACCOUNT UPDATE</b>
+
+<b>Starting Capital:</b> $1,000.00
+<b>Current Value:</b> ${summary['portfolio_value']:,.2f}
+<b>Total Return:</b> {summary['total_return_pct']:+.2f}%
+<b>This Trade:</b> -${dollar_loss:.2f}
+
+<b>Stats:</b>
+• Win Rate: {summary['win_rate']:.1f}%
+• Total Trades: {summary['total_trades']}
+• Wins: {summary['wins']} | Losses: {summary['losses']}
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+{EMOJI['strong']} <b>Remember:</b>
+• Losses are part of trading
+• We used proper risk management
+• Our stop loss protected us from bigger losses
+• We live to trade another day!
+
+Stay strong, stay disciplined. The next winner is coming! 💪
+
+#SP500 #TradingSignals #RiskManagement #StayStrong
+"""
+    return send_telegram(msg)
+
+
 def post_news():
     """Post market news update."""
     print("Posting market news...")
@@ -791,6 +968,8 @@ COMMANDS = {
     # News
     'news': post_news,
     'earnings': post_earnings,
+    # Monitoring
+    'monitor': post_monitor,
 }
 
 

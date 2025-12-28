@@ -46,6 +46,26 @@ on:
     # Monday Earnings Calendar - 12:30 UTC (7:30 AM ET)
     - cron: '30 12 * * 1'
 
+    # Signal Monitoring - Every 15 min during market hours (14:45-20:45 UTC)
+    - cron: '45 14 * * 1-5'
+    - cron: '0 15 * * 1-5'
+    - cron: '15 15 * * 1-5'
+    - cron: '45 15 * * 1-5'
+    - cron: '15 16 * * 1-5'
+    - cron: '30 16 * * 1-5'
+    - cron: '45 16 * * 1-5'
+    - cron: '15 17 * * 1-5'
+    - cron: '45 17 * * 1-5'
+    - cron: '0 18 * * 1-5'
+    - cron: '15 18 * * 1-5'
+    - cron: '45 18 * * 1-5'
+    - cron: '15 19 * * 1-5'
+    - cron: '30 19 * * 1-5'
+    - cron: '45 19 * * 1-5'
+    - cron: '15 20 * * 1-5'
+    - cron: '30 20 * * 1-5'
+    - cron: '45 20 * * 1-5'
+
   workflow_dispatch:
     inputs:
       command:
@@ -68,6 +88,7 @@ on:
           - banner
           - news
           - earnings
+          - monitor
 
 jobs:
   run-bot:
@@ -149,6 +170,11 @@ jobs:
             # 21:00 - Market Close
             elif [ "$HOUR" == "21" ] && [ "$MIN" -le "10" ]; then
               echo "cmd=close" >> $GITHUB_OUTPUT
+            # Monitor signals at :15, :45 during market hours
+            elif [ "$MIN" -ge "13" ] && [ "$MIN" -le "17" ]; then
+              echo "cmd=monitor" >> $GITHUB_OUTPUT
+            elif [ "$MIN" -ge "43" ] && [ "$MIN" -le "47" ]; then
+              echo "cmd=monitor" >> $GITHUB_OUTPUT
             # Default - Signal check
             else
               echo "cmd=signal" >> $GITHUB_OUTPUT

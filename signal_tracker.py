@@ -152,6 +152,93 @@ class SignalTracker:
         return [s for s in self.data['signals']
                 if s['status'] == SignalStatus.OPEN.value]
 
+    def check_signal_proximity(self, signal_id: str, current_price: float) -> Optional[Dict]:
+        """
+        Check if price is near TP or SL (within 50% of the way).
+
+        Returns dict with 'near_tp', 'near_sl', 'tp_progress', 'sl_progress' if near target.
+        """
+        for signal in self.data['signals']:
+            if signal['id'] == signal_id and signal['status'] == SignalStatus.OPEN.value:
+                entry = signal['entry_price']
+                tp = signal['take_profit']
+                sl = signal['stop_loss']
+                direction = signal['direction']
+
+                # Calculate progress towards TP and SL
+                if direction == "LONG":
+                    tp_distance = tp - entry
+                    sl_distance = entry - sl
+                    current_tp_progress = (current_price - entry) / tp_distance if tp_distance != 0 else 0
+                    current_sl_progress = (entry - current_price) / sl_distance if sl_distance != 0 else 0
+                else:  # SHORT
+                    tp_distance = entry - tp
+                    sl_distance = sl - entry
+                    current_tp_progress = (entry - current_price) / tp_distance if tp_distance != 0 else 0
+                    current_sl_progress = (current_price - entry) / sl_distance if sl_distance != 0 else 0
+
+                result = {
+                    'signal': signal,
+                    'current_price': current_price,
+                    'tp_progress': current_tp_progress * 100,  # percentage
+                    'sl_progress': current_sl_progress * 100,
+                    'near_tp': current_tp_progress >= 0.7,  # 70% of the way to TP
+                    'near_sl': current_sl_progress >= 0.7,  # 70% of the way to SL
+                    'hit_tp': current_tp_progress >= 1.0,
+                    'hit_sl': current_sl_progress >= 1.0
+                }
+
+                return result
+
+        return None
+
+    def check_all_signals(self, current_price: float) -> List[Dict]:
+        """
+        Check all open signals against current price.
+
+        Returns list of alerts for signals that hit TP, SL, or are near targets.
+        """
+        alerts = []
+        open_signals = self.get_open_signals()
+
+        for signal in open_signals:
+            result = self.check_signal_proximity(signal['id'], current_price)
+            if result:
+                if result['hit_tp']:
+                    closed = self._close_signal(signal['id'], signal['take_profit'], SignalStatus.TP_HIT)
+                    alerts.append({
+                        'type': 'TP_HIT',
+                        'signal': closed,
+                        'price': current_price
+                    })
+                elif result['hit_sl']:
+                    closed = self._close_signal(signal['id'], signal['stop_loss'], SignalStatus.SL_HIT)
+                    alerts.append({
+                        'type': 'SL_HIT',
+                        'signal': closed,
+                        'price': current_price
+                    })
+                elif result['near_tp'] and not signal.get('near_tp_alerted'):
+                    signal['near_tp_alerted'] = True
+                    self.save_data()
+                    alerts.append({
+                        'type': 'NEAR_TP',
+                        'signal': signal,
+                        'price': current_price,
+                        'progress': result['tp_progress']
+                    })
+                elif result['near_sl'] and not signal.get('near_sl_alerted'):
+                    signal['near_sl_alerted'] = True
+                    self.save_data()
+                    alerts.append({
+                        'type': 'NEAR_SL',
+                        'signal': signal,
+                        'price': current_price,
+                        'progress': result['sl_progress']
+                    })
+
+        return alerts
+
     def update_signal(self, signal_id: str, current_price: float) -> Optional[Dict]:
         """
         Check if signal hit TP or SL, update accordingly.
