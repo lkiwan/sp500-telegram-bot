@@ -910,6 +910,18 @@ def post_signal_update():
 
     dual_time = get_dual_time()
 
+    # Get today's signal entry price for P&L calculation
+    today_signal = performance_tracker.get_today_result()
+    if today_signal and today_signal.get('entry_price'):
+        entry_price = today_signal['entry_price']
+        signal_pnl = ((current_price - entry_price) / entry_price) * 100
+        pnl_emoji = "✅" if signal_pnl >= 0 else "❌"
+        pnl_text = f"<b>Signal P&L:</b> {signal_pnl:+.2f}% {pnl_emoji}"
+    else:
+        # Fallback to day change if no signal entry
+        signal_pnl = data['change_pct']
+        pnl_text = f"<b>Day Change:</b> {signal_pnl:+.2f}%"
+
     msg = f"""
 {dir_emoji} <b>SIGNAL UPDATE</b>
 
@@ -920,7 +932,8 @@ def post_signal_update():
 
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>S&P 500:</b> ${current_price:,.2f} ({data['change_pct']:+.2f}%)
+<b>S&P 500:</b> ${current_price:,.2f}
+{pnl_text}
 <b>RSI:</b> {data['rsi']:.0f}
 <b>VIX:</b> {economic_data.get('vix', 20):.1f}
 
