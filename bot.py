@@ -861,13 +861,14 @@ def post_signal_check():
 
 {time_header}
 
+📍 <i>Today's prediction - Entry recorded at this price</i>
+
 <b>Direction:</b> {dir_text}
 <b>Confidence:</b> {confidence:.0f}% ({conf_text})
 
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>S&P 500:</b> ${current_price:,.2f}
-<b>Day Change:</b> {data['change_pct']:+.2f}%
+<b>Entry Price:</b> ${current_price:,.2f}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -881,8 +882,7 @@ def post_signal_check():
 
 <b>Outlook:</b> {action}
 
-<i>Strategy: Hold 1 day, check tomorrow's close
-Model Win Rate: 71%</i>
+<i>📊 Result checked at market close (4 PM ET / 22:00 Morocco)</i>
 
 #SP500 #DailySignal #{dir_text}
 """
@@ -929,26 +929,32 @@ def post_signal_update():
         entry_price = today_signal['entry_price']
         signal_pnl = ((current_price - entry_price) / entry_price) * 100
         pnl_emoji = "✅" if signal_pnl >= 0 else "❌"
-        pnl_text = f"<b>Signal P&L:</b> {signal_pnl:+.2f}% {pnl_emoji}"
+        entry_text = f"<b>Entry:</b> ${entry_price:,.2f}"
+        pnl_text = f"<b>Current P&L:</b> {signal_pnl:+.2f}% {pnl_emoji}"
+        status = "Signal winning!" if signal_pnl >= 0 else "Signal losing"
     else:
-        # Fallback to day change if no signal entry
-        signal_pnl = data['change_pct']
-        pnl_text = f"<b>Day Change:</b> {signal_pnl:+.2f}%"
+        entry_text = ""
+        pnl_text = f"<b>Day Change:</b> {data['change_pct']:+.2f}%"
+        status = "Tracking..."
 
     msg = f"""
 {dir_emoji} <b>SIGNAL UPDATE</b>
 
 {dual_time}
 
+📊 <i>Tracking today's signal performance</i>
+
 <b>Direction:</b> {dir_text}
-<b>Confidence:</b> {confidence:.0f}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>S&P 500:</b> ${current_price:,.2f}
+{entry_text}
+<b>Now:</b> ${current_price:,.2f}
 {pnl_text}
-<b>RSI:</b> {data['rsi']:.0f}
-<b>VIX:</b> {economic_data.get('vix', 20):.1f}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Status:</b> {status}
 
 #SP500 #SignalUpdate
 """
@@ -956,54 +962,79 @@ def post_signal_update():
 
 
 def post_market_close():
-    """Post simple market close recap."""
+    """Post market close with signal result - WIN or LOSS."""
     print("Posting market close...")
 
     data = get_current_data()
-    daily_perf = tracker.get_daily_performance()
-
     if not data:
         return send_telegram("🔔 <b>Market Closed</b>\n\nSee you tomorrow!\n\n#SP500")
 
-    change_emoji = "📈" if data['change_pct'] > 0 else ("📉" if data['change_pct'] < 0 else "➡️")
-
+    close_price = data['close']
     time_header = get_time_header()
 
-    # Day result
-    if data['change_pct'] > 0.5:
-        result = "🟢🟢 Strong Up"
-    elif data['change_pct'] > 0:
-        result = "🟢 Up"
-    elif data['change_pct'] > -0.5:
-        result = "🔴 Down"
+    # Get today's signal result
+    today_signal = performance_tracker.get_today_result()
+    if today_signal and today_signal.get('entry_price'):
+        entry_price = today_signal['entry_price']
+        direction = today_signal.get('direction', 'UP')
+        signal_pnl = ((close_price - entry_price) / entry_price) * 100
+
+        # Determine WIN or LOSS
+        if direction == 'UP':
+            is_win = close_price > entry_price
+        else:
+            is_win = close_price < entry_price
+
+        if is_win:
+            result_emoji = "✅✅✅"
+            result_text = "WIN"
+            result_msg = "Signal was correct!"
+        else:
+            result_emoji = "❌"
+            result_text = "LOSS"
+            result_msg = "Signal was wrong"
+
+        signal_result = f"""
+<b>📍 SIGNAL RESULT</b>
+
+{result_emoji} <b>{result_text}</b> {result_emoji}
+
+• Direction: {direction}
+• Entry: ${entry_price:,.2f}
+• Close: ${close_price:,.2f}
+• P&L: {signal_pnl:+.2f}%
+
+{result_msg}
+"""
+        # Update performance tracker with close price
+        today = datetime.now(TZ_ET).strftime('%Y-%m-%d')
+        performance_tracker.record_daily_signal(
+            date=today,
+            direction=direction,
+            confidence=today_signal.get('confidence', 0),
+            entry_price=entry_price,
+            close_price=close_price
+        )
     else:
-        result = "🔴🔴 Strong Down"
+        signal_result = ""
 
     msg = f"""
 🔔 <b>MARKET CLOSE</b> 🔔
 
 {time_header}
 
-━━━━━━━━━━━━━━━━━━━━
-
-{change_emoji} <b>S&P 500:</b> ${data['close']:,.2f}
-{change_emoji} <b>Change:</b> {data['change_pct']:+.2f}% ({result})
+🏁 <i>Market closed - Here's today's result!</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-
-<b>Day Range:</b>
-• High: ${data['high']:,.2f}
-• Low: ${data['low']:,.2f}
-
-<b>Indicators:</b>
-• RSI: {data['rsi']:.0f}
-• MACD: {'🟢 Bullish' if data['macd_hist'] > 0 else '🔴 Bearish'}
-
+{signal_result}
 ━━━━━━━━━━━━━━━━━━━━
 
-See you tomorrow, traders! 👋
+<b>S&P 500:</b> ${close_price:,.2f}
+<b>Day Change:</b> {data['change_pct']:+.2f}%
 
-#SP500 #MarketClose #Trading
+See you tomorrow! 👋
+
+#SP500 #MarketClose #SignalResult
 """
     return send_telegram(msg)
 
@@ -1981,23 +2012,30 @@ def post_preclose():
     if not data:
         return send_telegram("🔔 <b>Pre-Close Check</b>\n\n30 minutes to close!\n\n#SP500")
 
-    # Day performance
-    if data['change_pct'] > 0.5:
-        day_status = "🟢 Strong day - locking in gains"
-    elif data['change_pct'] > 0:
-        day_status = "🟢 Positive day - holding steady"
-    elif data['change_pct'] > -0.5:
-        day_status = "🔴 Slight weakness - watching levels"
-    else:
-        day_status = "🔴 Selling pressure - stay cautious"
+    current_price = data['close']
 
-    # RSI status
-    if data['rsi'] > 70:
-        rsi_note = "⚠️ Overbought - profit-taking possible"
-    elif data['rsi'] < 30:
-        rsi_note = "⚠️ Oversold - bounce candidates"
+    # Get today's signal for P&L
+    today_signal = performance_tracker.get_today_result()
+    if today_signal and today_signal.get('entry_price'):
+        entry_price = today_signal['entry_price']
+        signal_pnl = ((current_price - entry_price) / entry_price) * 100
+        direction = today_signal.get('direction', 'UP')
+
+        if direction == 'UP':
+            winning = signal_pnl > 0
+        else:
+            winning = signal_pnl < 0
+
+        pnl_emoji = "✅" if winning else "❌"
+        signal_status = f"""
+<b>📍 Today's Signal:</b>
+• Direction: {direction}
+• Entry: ${entry_price:,.2f}
+• Now: ${current_price:,.2f}
+• P&L: {signal_pnl:+.2f}% {pnl_emoji}
+"""
     else:
-        rsi_note = "📊 RSI in normal range"
+        signal_status = ""
 
     dual_time = get_dual_time()
 
@@ -2006,22 +2044,15 @@ def post_preclose():
 
 {dual_time}
 
-30 minutes until the bell!
+⏰ <i>30 minutes until market close - Final result coming soon!</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-
-<b>Day Summary:</b>
-💵 S&P 500: ${data['close']:,.2f}
-📊 Change: {data['change_pct']:+.2f}%
-📈 RSI: {data['rsi']:.0f}
-
+{signal_status}
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>Status:</b>
-{day_status}
-{rsi_note}
+<b>S&P 500:</b> ${current_price:,.2f}
 
-See you at the close! 🔔
+🔔 Result announced at close (4 PM ET / 22:00 Morocco)
 
 #SP500 #PreClose #Trading
 """
