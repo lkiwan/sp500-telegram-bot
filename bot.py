@@ -866,8 +866,7 @@ def post_signal_check():
 
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>S&P 500:</b> ${current_price:,.2f}
-<b>Day Change:</b> {data['change_pct']:+.2f}%
+<b>S&P 500 Entry:</b> ${current_price:,.2f}
 
 ━━━━━━━━━━━━━━━━━━━━
 
