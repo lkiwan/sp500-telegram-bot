@@ -2063,6 +2063,38 @@ def post_ml_quick_scan():
     return post_signal_check()
 
 
+def post_breakeven_alert(updated_signals: list, opposite_direction: str, confidence: float):
+    """Post notification when stops are moved to break-even."""
+    if not updated_signals:
+        return False
+
+    count = len(updated_signals)
+    direction_emoji = "📈" if updated_signals[0]['direction'] == "LONG" else "📉"
+    opposite_emoji = "📉" if opposite_direction == "SHORT" else "📈"
+
+    signals_list = ""
+    for sig in updated_signals:
+        signals_list += f"\n• {sig['direction']} @ ${sig['entry_price']:,.2f} → SL moved to ${sig['stop_loss']:,.2f}"
+
+    msg = f"""🛡️ <b>BREAK-EVEN PROTECTION</b> 🛡️
+
+{opposite_emoji} Opposite signal detected: <b>{opposite_direction}</b> ({confidence:.0f}%)
+
+{direction_emoji} <b>{count} trade(s) protected:</b>
+{signals_list}
+
+Stop Loss moved to Entry Price = No Loss Risk!
+
+✅ If price goes our way → Still profit
+🔄 If price reverses → Exit at break-even
+
+{get_signals_summary()}
+
+#SP500 #RiskManagement #BreakEven"""
+
+    return send_telegram(msg)
+
+
 def post_high_confidence_alert():
     """Post ONLY if confidence >= 81% AND less than 5 open signals."""
     print("Checking for high confidence signal...")
@@ -2087,18 +2119,33 @@ def post_high_confidence_alert():
             post_sl_hit(signal)
             print(f"SL HIT posted for signal {signal['id']}")
 
-    # Check if we already have 5 open signals
-    open_signals = tracker.get_open_signals()
-    if len(open_signals) >= 5:
-        print(f"Already have {len(open_signals)} open signals (max 5). Skipping new signal.")
-        return False
-
     economic_data = get_economic_data()
     df = data['df']
 
     prediction = ml_predictor.predict(df, economic_data)
     confidence = prediction['confidence']
     direction = prediction['direction']
+
+    # Check for break-even protection: opposite signal with >= 80% confidence
+    if confidence >= 80:
+        opposite_direction = "SHORT" if direction == "LONG" else "LONG"
+        open_opposite = tracker.get_open_signals_by_direction(opposite_direction)
+
+        if open_opposite:
+            print(f"Opposite signal detected ({direction} {confidence:.1f}%) with {len(open_opposite)} {opposite_direction} trades open")
+            print("Moving stops to break-even...")
+
+            updated = tracker.move_stops_to_breakeven(opposite_direction)
+            if updated:
+                post_breakeven_alert(updated, direction, confidence)
+                print(f"Moved {len(updated)} trades to break-even")
+                return True
+
+    # Check if we already have 5 open signals
+    open_signals = tracker.get_open_signals()
+    if len(open_signals) >= 5:
+        print(f"Already have {len(open_signals)} open signals (max 5). Skipping new signal.")
+        return False
 
     if confidence < 81:
         print(f"Confidence {confidence:.1f}% below elite threshold (81%)")

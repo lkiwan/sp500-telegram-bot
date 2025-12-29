@@ -350,6 +350,49 @@ class SignalTracker:
                 return self._close_signal(signal_id, exit_price, SignalStatus.EXPIRED)
         return None
 
+    def move_stops_to_breakeven(self, direction: str) -> List[Dict]:
+        """
+        Move stop losses to break-even (entry price) for all open signals
+        in the specified direction.
+
+        Args:
+            direction: "LONG" or "SHORT" - the direction of trades to protect
+
+        Returns:
+            List of signals that were updated
+        """
+        updated_signals = []
+
+        for signal in self.data['signals']:
+            if signal['status'] == SignalStatus.OPEN.value and signal['direction'] == direction.upper():
+                entry_price = signal['entry_price']
+                old_sl = signal['stop_loss']
+
+                # Only move SL if it would be an improvement (closer to profit)
+                if direction.upper() == "LONG":
+                    # For LONG, move SL up to entry if current SL is below entry
+                    if old_sl < entry_price:
+                        signal['stop_loss'] = entry_price
+                        signal['notes'] = f"SL moved to break-even from ${old_sl:.2f}"
+                        updated_signals.append(signal)
+                else:  # SHORT
+                    # For SHORT, move SL down to entry if current SL is above entry
+                    if old_sl > entry_price:
+                        signal['stop_loss'] = entry_price
+                        signal['notes'] = f"SL moved to break-even from ${old_sl:.2f}"
+                        updated_signals.append(signal)
+
+        if updated_signals:
+            self.save_data()
+
+        return updated_signals
+
+    def get_open_signals_by_direction(self, direction: str) -> List[Dict]:
+        """Get all open signals for a specific direction."""
+        return [s for s in self.data['signals']
+                if s['status'] == SignalStatus.OPEN.value
+                and s['direction'] == direction.upper()]
+
     def _update_stats(self, signal: Dict):
         """Update performance statistics."""
         stats = self.data['stats']
