@@ -165,8 +165,6 @@ def get_channel_description() -> str:
 📈 Our Approach:
 Data-driven signals using RSI, MACD, Bollinger Bands, and more. We explain WHY, not just WHAT.
 
-⚠️ Educational content only. Not financial advice.
-
 🤖 Powered by AI & Technical Analysis"""
 
 
@@ -214,13 +212,6 @@ Your home for <b>professional S&P 500 analysis</b> and trading signals.
 🎓 <b>OUR PHILOSOPHY:</b>
 
 "Hey traders! We don't just tell you WHAT to do - we explain WHY. Every signal comes with technical reasoning so you can learn and grow as a trader."
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ <b>DISCLAIMER:</b>
-This channel is for <b>educational purposes only</b>.
-Not financial advice. Always do your own research.
-Past performance doesn't guarantee future results.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 

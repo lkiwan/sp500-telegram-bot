@@ -453,8 +453,6 @@ Trade smart, not hard! 💪
 <b>Why this setup:</b>
 {setup_explanation}
 
-⚠️ <i>This is educational content, not financial advice. Always do your own research!</i>
-
 {hashtags}
 """,
 
