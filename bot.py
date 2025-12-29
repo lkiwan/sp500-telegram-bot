@@ -2004,8 +2004,8 @@ def post_high_confidence_alert():
     confidence = prediction['confidence']
     direction = prediction['direction']
 
-    if confidence < 75:
-        print(f"Confidence {confidence:.1f}% below elite threshold (75%)")
+    if confidence < 70:
+        print(f"Confidence {confidence:.1f}% below elite threshold (70%)")
         return False
 
     current_price = data['close']
