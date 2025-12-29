@@ -134,17 +134,12 @@ jobs:
                 echo "cmd=after" >> $GITHUB_OUTPUT
               fi
 
-            # Elite scans every 30 min during market hours (not on key post times)
-            elif [ "$HOUR" -ge 14 ] && [ "$HOUR" -lt 21 ]; then
-              if [ "$((MIN % 30))" -lt 5 ]; then
-                echo "cmd=elite" >> $GITHUB_OUTPUT
-              else
-                # Skip - not a scheduled time
-                echo "cmd=skip" >> $GITHUB_OUTPUT
-              fi
+            # Monitor open positions every hour during market hours
+            elif [ "$HOUR" -ge 15 ] && [ "$HOUR" -lt 21 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              echo "cmd=monitor" >> $GITHUB_OUTPUT
 
             else
-              # Outside market hours - skip
+              # Skip - not a scheduled time
               echo "cmd=skip" >> $GITHUB_OUTPUT
             fi
           fi
