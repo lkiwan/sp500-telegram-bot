@@ -2,19 +2,19 @@ name: S&P 500 Professional Bot
 
 on:
   schedule:
-    # ONE SMART CRON - Runs every 5 minutes, bot decides what to post
-    # Hours: 12:00-23:00 UTC = 7 AM - 6 PM ET
-    # Days: Monday-Friday only
-    - cron: '*/5 12-23 * * 1-5'
+    # BACKUP CRON - Every 15 min (in case cron-job.org fails)
+    # Primary scheduler: cron-job.org (every 5 min, more reliable)
+    - cron: '0,15,30,45 12-23 * * 1-5'
 
   workflow_dispatch:
     inputs:
       command:
         description: 'Command to run'
-        required: true
-        default: 'test'
+        required: false
+        default: 'auto'
         type: choice
         options:
+          - auto
           - test
           - gm
           - morning
@@ -92,9 +92,13 @@ jobs:
       - name: Determine command
         id: command
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "cmd=${{ github.event.inputs.command }}" >> $GITHUB_OUTPUT
+          INPUT_CMD="${{ github.event.inputs.command }}"
+
+          # If manual trigger with specific command (not auto), use it
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "$INPUT_CMD" != "auto" ] && [ -n "$INPUT_CMD" ]; then
+            echo "cmd=$INPUT_CMD" >> $GITHUB_OUTPUT
           else
+            # Auto-determine based on current time (for scheduled runs OR auto command)
             HOUR=$(date -u +%H)
             MIN=$(date -u +%M)
             DOW=$(date -u +%u)
