@@ -28,6 +28,9 @@ on:
           - weekly
           - monthly
           - simulation
+          - welcome
+          - logo
+          - banner
 
 permissions:
   contents: write
