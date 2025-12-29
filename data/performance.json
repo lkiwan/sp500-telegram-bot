@@ -1,0 +1,21 @@
+{
+  "daily_results": [
+    {
+      "date": "2025-12-29",
+      "direction": "UP",
+      "confidence": 75.20317077636719,
+      "entry_price": 6912.27001953125,
+      "close_price": null,
+      "actual_change": null,
+      "is_correct": null,
+      "result": "PENDING"
+    }
+  ],
+  "weeks": [],
+  "months": [],
+  "current_streak": 0,
+  "best_streak": 0,
+  "worst_streak": 0,
+  "total_signals": 0,
+  "total_wins": 0
+}
