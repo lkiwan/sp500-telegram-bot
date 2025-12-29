@@ -1589,6 +1589,63 @@ This is when big moves happen! 🔥
     return send_telegram(msg)
 
 
+def post_preclose():
+    """Post pre-close summary before market closes."""
+    print("Posting pre-close summary...")
+
+    data = get_current_data()
+    if not data:
+        return send_telegram("🔔 <b>Pre-Close Check</b>\n\n30 minutes to close!\n\n#SP500")
+
+    # Day performance
+    if data['change_pct'] > 0.5:
+        day_status = "🟢 Strong day - locking in gains"
+    elif data['change_pct'] > 0:
+        day_status = "🟢 Positive day - holding steady"
+    elif data['change_pct'] > -0.5:
+        day_status = "🔴 Slight weakness - watching levels"
+    else:
+        day_status = "🔴 Selling pressure - stay cautious"
+
+    # RSI status
+    if data['rsi'] > 70:
+        rsi_note = "⚠️ Overbought - profit-taking possible"
+    elif data['rsi'] < 30:
+        rsi_note = "⚠️ Oversold - bounce candidates"
+    else:
+        rsi_note = "📊 RSI in normal range"
+
+    # Open signals check
+    open_signals = [s for s in tracker.data.get('signals', []) if s.get('status') == 'OPEN']
+
+    msg = f"""
+🔔 <b>PRE-CLOSE CHECK</b>
+
+30 minutes until the bell!
+
+<b>Day Summary:</b>
+💵 S&P 500: ${data['close']:,.0f}
+📊 Change: {data['change_pct']:+.2f}%
+📈 RSI: {data['rsi']:.0f}
+
+<b>Status:</b>
+{day_status}
+{rsi_note}
+
+<b>Open Signals:</b> {len(open_signals)}
+
+<b>Final Hour Tips:</b>
+• Watch for closing momentum
+• Consider position sizing
+• Set alerts for key levels
+
+See you at the close! 🔔
+
+#SP500 #PreClose #Trading
+"""
+    return send_telegram(msg)
+
+
 def post_tomorrow_preview():
     """Post preview of tomorrow's trading."""
     print("Posting tomorrow preview...")
@@ -2476,6 +2533,8 @@ COMMANDS = {
     # Power Hour / Close
     'power': post_power_hour,
     'power_hour': post_power_hour,
+    'preclose': post_preclose,
+    'pre_close': post_preclose,
     'close': post_market_close,
     'market_close': post_market_close,
     'recap': post_daily_recap,

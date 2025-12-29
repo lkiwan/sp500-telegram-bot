@@ -1,8 +1,8 @@
 name: S&P 500 Professional Bot
 
 on:
-  # NO GitHub cron - 100% triggered by cron-job.org (every 5 min, reliable)
-  # GitHub cron is unreliable with delays of 20-60+ minutes
+  # Triggered by cron-job.org every 5 minutes (more reliable than GitHub cron)
+  # GitHub cron has 20-60+ minute delays
 
   workflow_dispatch:
     inputs:
@@ -14,43 +14,18 @@ on:
         options:
           - auto
           - test
-          - gm
           - morning
-          - premarket
-          - wisdom
-          - theory
-          - calendar
           - open
-          - opening
           - sentiment
-          - signal
           - technical
           - economic
+          - signal
+          - preclose
           - close
-          - weekly
-          - news
-          - earnings
-          - monitor
-          - factors
-          - elite
-          - momentum
-          - risk
-          - history
-          - why
-          - midday
-          - sector
-          - trend
-          - volume
-          - tip
-          - simulation
-          - positions
-          - power
-          - recap
-          - journal
           - after
-          - tomorrow
-          - gn
-          - week_ahead
+          - weekly
+          - elite
+          - simulation
 
 permissions:
   contents: write
@@ -96,150 +71,86 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "$INPUT_CMD" != "auto" ] && [ -n "$INPUT_CMD" ]; then
             echo "cmd=$INPUT_CMD" >> $GITHUB_OUTPUT
           else
-            # Auto-determine based on current time (for scheduled runs OR auto command)
+            # Auto-determine based on current time
+            # Schedule: 10 KEY POSTS per day (all times in UTC, ET = UTC-5)
+            #
+            # | ET Time  | UTC Time | Post Type        |
+            # |----------|----------|------------------|
+            # | 8:00 AM  | 13:00    | Morning Briefing |
+            # | 9:30 AM  | 14:30    | Market Open      |
+            # | 10:30 AM | 15:30    | Sentiment        |
+            # | 12:00 PM | 17:00    | Technical        |
+            # | 1:30 PM  | 18:30    | Economic Update  |
+            # | 2:30 PM  | 19:30    | Signal Check     |
+            # | 3:30 PM  | 20:30    | Pre-Close        |
+            # | 4:00 PM  | 21:00    | Market Close     |
+            # | 5:00 PM  | 22:00    | After Hours      |
+            # | Fri 5PM  | 22:00    | Weekly Report    |
+            #
+            # Elite scans run every 30 min during market hours (14:30-21:00 UTC)
+
             HOUR=$(date -u +%-H)
             MIN=$(date -u +%-M)
-            DOW=$(date -u +%u)
+            DOW=$(date -u +%u)  # 1=Monday, 5=Friday
 
-            # Check if this is a 5-minute elite scan (not on :00, :15, :30, :45)
-            if [ "$((MIN % 15))" -ne "0" ]; then
-              # Elite scan - only during market hours
-              if [ "$HOUR" -ge 14 ] && [ "$HOUR" -le 20 ]; then
+            # Key posts at specific times (with 5-minute window)
+            if [ "$HOUR" -eq 13 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 8:00 AM ET - Morning Briefing
+              echo "cmd=morning" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 14 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 9:30 AM ET - Market Open
+              echo "cmd=open" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 15 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 10:30 AM ET - Sentiment
+              echo "cmd=sentiment" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 17 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 12:00 PM ET - Technical Analysis
+              echo "cmd=technical" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 18 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 1:30 PM ET - Economic Update
+              echo "cmd=economic" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 19 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 2:30 PM ET - Signal Check
+              echo "cmd=signal" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 20 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 3:30 PM ET - Pre-Close
+              echo "cmd=preclose" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 21 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 4:00 PM ET - Market Close
+              echo "cmd=close" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 22 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 5:00 PM ET - After Hours or Weekly (Friday)
+              if [ "$DOW" -eq 5 ]; then
+                echo "cmd=weekly" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=after" >> $GITHUB_OUTPUT
+              fi
+
+            # Elite scans every 30 min during market hours (not on key post times)
+            elif [ "$HOUR" -ge 14 ] && [ "$HOUR" -lt 21 ]; then
+              if [ "$((MIN % 30))" -lt 5 ]; then
                 echo "cmd=elite" >> $GITHUB_OUTPUT
               else
-                echo "cmd=signal" >> $GITHUB_OUTPUT
+                # Skip - not a scheduled time
+                echo "cmd=skip" >> $GITHUB_OUTPUT
               fi
+
             else
-              # Main 15-minute posts based on time
-
-              # PRE-MARKET (12:00-14:30 UTC = 7:00-9:30 AM ET)
-              if [ "$HOUR" -eq 12 ]; then
-                case "$MIN" in
-                  0) echo "cmd=gm" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=wisdom" >> $GITHUB_OUTPUT ;;
-                  30)
-                    if [ "$DOW" -eq 1 ]; then
-                      echo "cmd=week_ahead" >> $GITHUB_OUTPUT
-                    else
-                      echo "cmd=earnings" >> $GITHUB_OUTPUT
-                    fi ;;
-                  45) echo "cmd=premarket" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                esac
-
-              elif [ "$HOUR" -eq 13 ]; then
-                case "$MIN" in
-                  0) echo "cmd=morning" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=calendar" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=news" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=sector" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                esac
-
-              elif [ "$HOUR" -eq 14 ]; then
-                case "$MIN" in
-                  0) echo "cmd=theory" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=technical" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=open" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=opening" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                esac
-
-              # MARKET HOURS (15:00-17:00 UTC = 10:00-12:00 PM ET)
-              elif [ "$HOUR" -eq 15 ]; then
-                case "$MIN" in
-                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=momentum" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=sentiment" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=trend" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
-                esac
-
-              elif [ "$HOUR" -eq 16 ]; then
-                case "$MIN" in
-                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=history" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=risk" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=tip" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
-                esac
-
-              # MIDDAY (17:00-19:00 UTC = 12:00-2:00 PM ET)
-              elif [ "$HOUR" -eq 17 ]; then
-                case "$MIN" in
-                  0) echo "cmd=midday" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=theory" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=news" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=why" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
-                esac
-
-              elif [ "$HOUR" -eq 18 ]; then
-                case "$MIN" in
-                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=factors" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=economic" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=simulation" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
-                esac
-
-              # AFTERNOON (19:00-20:00 UTC = 2:00-3:00 PM ET)
-              elif [ "$HOUR" -eq 19 ]; then
-                case "$MIN" in
-                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=volume" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=trend" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=wisdom" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
-                esac
-
-              # POWER HOUR (20:00-21:00 UTC = 3:00-4:00 PM ET)
-              elif [ "$HOUR" -eq 20 ]; then
-                case "$MIN" in
-                  0) echo "cmd=power" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=momentum" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=sentiment" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=positions" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
-                esac
-
-              # CLOSE & AFTER (21:00-23:00 UTC = 4:00-6:00 PM ET)
-              elif [ "$HOUR" -eq 21 ]; then
-                case "$MIN" in
-                  0) echo "cmd=close" >> $GITHUB_OUTPUT ;;
-                  15) echo "cmd=recap" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=simulation" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=journal" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                esac
-
-              elif [ "$HOUR" -eq 22 ]; then
-                case "$MIN" in
-                  0)
-                    if [ "$DOW" -eq 5 ]; then
-                      echo "cmd=weekly" >> $GITHUB_OUTPUT
-                    else
-                      echo "cmd=tomorrow" >> $GITHUB_OUTPUT
-                    fi ;;
-                  15) echo "cmd=after" >> $GITHUB_OUTPUT ;;
-                  30) echo "cmd=tip" >> $GITHUB_OUTPUT ;;
-                  45) echo "cmd=wisdom" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                esac
-
-              elif [ "$HOUR" -eq 23 ]; then
-                case "$MIN" in
-                  0) echo "cmd=gn" >> $GITHUB_OUTPUT ;;
-                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
-                esac
-
-              else
-                echo "cmd=signal" >> $GITHUB_OUTPUT
-              fi
+              # Outside market hours - skip
+              echo "cmd=skip" >> $GITHUB_OUTPUT
             fi
           fi
 
       - name: Run Bot
+        if: steps.command.outputs.cmd != 'skip'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -250,8 +161,13 @@ jobs:
           echo "Running command: $CMD"
           python bot.py $CMD
 
+      - name: Skip notification
+        if: steps.command.outputs.cmd == 'skip'
+        run: |
+          echo "Skipping - not a scheduled post time"
+
       - name: Save signal data to repo
-        if: always()
+        if: always() && steps.command.outputs.cmd != 'skip'
         run: |
           if [ -f "data/signals.json" ]; then
             git config --local user.email "bot@lkiwansp500.com"
