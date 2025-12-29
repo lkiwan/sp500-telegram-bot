@@ -568,6 +568,12 @@ def post_signal_check():
     """Check for trading signals and post if found - WITH CHART."""
     print("Checking for signals...")
 
+    # Check if we already have 5 open signals
+    open_signals = tracker.get_open_signals()
+    if len(open_signals) >= 5:
+        print(f"Already have {len(open_signals)} open signals (max 5). Skipping.")
+        return False
+
     data = get_current_data()
     if not data:
         print("No data available")
@@ -582,7 +588,8 @@ def post_signal_check():
 
     print(f"Signal: {direction} with {confidence:.1f}% confidence")
 
-    if confidence >= MIN_CONFIDENCE:
+    # Require 81% confidence
+    if confidence >= 81:
         current_price = data['close']
 
         levels = ml_predictor.get_signal_levels(current_price, direction, confidence)
@@ -699,7 +706,7 @@ def post_signal_check():
 #SP500 #TradingSignals #SellSignal"""
             return send_telegram(msg)
     else:
-        print(f"Confidence {confidence:.1f}% below threshold {MIN_CONFIDENCE}%")
+        print(f"Confidence {confidence:.1f}% below threshold 81%")
         return False
 
 
