@@ -2057,7 +2057,7 @@ def post_ml_quick_scan():
 
 
 def post_high_confidence_alert():
-    """Post ONLY if confidence >= 70% - elite signals with chart."""
+    """Post ONLY if confidence >= 81% AND less than 5 open signals."""
     print("Checking for high confidence signal...")
 
     # First, check open signals for TP/SL hits
@@ -2080,6 +2080,12 @@ def post_high_confidence_alert():
             post_sl_hit(signal)
             print(f"SL HIT posted for signal {signal['id']}")
 
+    # Check if we already have 5 open signals
+    open_signals = tracker.get_open_signals()
+    if len(open_signals) >= 5:
+        print(f"Already have {len(open_signals)} open signals (max 5). Skipping new signal.")
+        return False
+
     economic_data = get_economic_data()
     df = data['df']
 
@@ -2087,8 +2093,8 @@ def post_high_confidence_alert():
     confidence = prediction['confidence']
     direction = prediction['direction']
 
-    if confidence < 70:
-        print(f"Confidence {confidence:.1f}% below elite threshold (70%)")
+    if confidence < 81:
+        print(f"Confidence {confidence:.1f}% below elite threshold (81%)")
         return False
 
     current_price = data['close']
