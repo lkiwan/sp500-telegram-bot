@@ -606,7 +606,14 @@ def post_signal_check():
         current_price = data['close']
         vix = economic_data.get('vix', 20.0)
 
-        # === RISK CHECK 3: Volume Confirmation ===
+        # === RISK CHECK 3: VIX Regime Filter ===
+        vix_ok, vix_reason = risk_manager.check_vix_regime(vix)
+        if not vix_ok:
+            print(f"VIX filter: {vix_reason}")
+            return False
+        print(f"VIX check: {vix_reason}")
+
+        # === RISK CHECK 4: Volume Confirmation ===
         avg_volume = df['volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['volume'].mean()
         current_volume = data['volume']
         vol_ok, vol_reason = risk_manager.check_volume_confirmation(current_volume, avg_volume)
@@ -2269,7 +2276,15 @@ def post_high_confidence_alert():
         print(f"Confidence {confidence:.1f}% below elite threshold (81%)")
         return False
 
-    # === RISK CHECK 3: Volume Confirmation ===
+    # === RISK CHECK 3: VIX Regime Filter ===
+    vix = economic_data.get('vix', 20.0)
+    vix_ok, vix_reason = risk_manager.check_vix_regime(vix)
+    if not vix_ok:
+        print(f"VIX filter: {vix_reason}")
+        return False
+    print(f"VIX check: {vix_reason}")
+
+    # === RISK CHECK 4: Volume Confirmation ===
     avg_volume = df['volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['volume'].mean()
     current_volume = data['volume']
     vol_ok, vol_reason = risk_manager.check_volume_confirmation(current_volume, avg_volume)
@@ -2277,7 +2292,7 @@ def post_high_confidence_alert():
         print(f"Volume too low: {vol_reason}")
         return False
 
-    # === RISK CHECK 4: Trend Alignment ===
+    # === RISK CHECK 5: Trend Alignment ===
     daily_trend = "LONG" if data['close'] > data['sma_50'] else "SHORT" if data['close'] < data['sma_50'] else "NEUTRAL"
     trend_aligned, trend_multiplier, trend_reason = risk_manager.check_trend_alignment(daily_trend, direction)
 
@@ -2287,7 +2302,6 @@ def post_high_confidence_alert():
         return False
 
     # === DYNAMIC TP/SL based on VIX ===
-    vix = economic_data.get('vix', 20.0)
     dynamic_levels = risk_manager.get_dynamic_levels(current_price, direction, vix)
     entry = current_price
     take_profit = dynamic_levels['take_profit']

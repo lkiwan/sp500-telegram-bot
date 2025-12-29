@@ -49,6 +49,28 @@ class RiskManager:
 
         return True, "OK"
 
+    def check_vix_regime(self, vix: float) -> Tuple[bool, str]:
+        """
+        Check if VIX regime is suitable for trading.
+
+        Based on backtest results:
+        - ELEVATED (>20): 100% win rate - BEST
+        - NORMAL (15-20): 33% win rate - OK
+        - LOW (<15): 0% win rate - AVOID!
+        """
+        regime = self._get_vix_regime(vix)
+
+        if regime == "LOW":
+            return False, f"VIX too low ({vix:.1f}) - low volatility = poor signals"
+        elif regime == "EXTREME":
+            return True, f"VIX extreme ({vix:.1f}) - use wider stops"
+        elif regime == "HIGH":
+            return True, f"VIX high ({vix:.1f}) - good volatility"
+        elif regime == "ELEVATED":
+            return True, f"VIX elevated ({vix:.1f}) - optimal conditions"
+        else:  # NORMAL
+            return True, f"VIX normal ({vix:.1f}) - proceed with caution"
+
     def is_good_trading_time(self) -> Tuple[bool, str]:
         """
         Check if current time is good for trading.
