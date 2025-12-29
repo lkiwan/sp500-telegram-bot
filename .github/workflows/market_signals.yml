@@ -194,10 +194,8 @@ jobs:
       - name: Save signal data to repo
         if: always() && steps.command.outputs.cmd != 'skip'
         run: |
-          if [ -f "data/signals.json" ]; then
-            git config --local user.email "bot@lkiwansp500.com"
-            git config --local user.name "SP500 Bot"
-            git add data/signals.json
-            git diff --staged --quiet || git commit -m "Update signal data [skip ci]"
-            git push || echo "Nothing to push"
-          fi
+          git config --local user.email "bot@lkiwansp500.com"
+          git config --local user.name "SP500 Bot"
+          git add data/signals.json data/performance.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "Update signal data [skip ci]"
+          git push || echo "Nothing to push"
