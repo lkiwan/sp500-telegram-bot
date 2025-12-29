@@ -94,6 +94,74 @@ def send_telegram_photo(image_buffer: BytesIO, caption: str = "") -> bool:
         return False
 
 
+def get_signals_summary() -> str:
+    """Generate a summary of recent signals and portfolio status."""
+    signals = tracker.data.get('signals', [])
+    portfolio = tracker.data.get('portfolio', {})
+    stats = tracker.data.get('stats', {})
+
+    # Get last 5 signals
+    recent_signals = signals[-5:] if len(signals) > 5 else signals
+
+    summary_lines = []
+    summary_lines.append(f"\n{EMOJI['chart']} <b>SIGNALS HISTORY</b>")
+    summary_lines.append("─" * 20)
+
+    if not recent_signals:
+        summary_lines.append("No signals yet")
+    else:
+        for sig in reversed(recent_signals):
+            direction = sig.get('direction', 'N/A')
+            status = sig.get('status', 'open')
+            entry = sig.get('entry_price', 0)
+            pnl = sig.get('pnl_pct')
+
+            # Status emoji and text
+            if status == 'open':
+                status_emoji = "🔵"
+                status_text = "EN COURS"
+                pnl_text = ""
+            elif status == 'tp_hit':
+                status_emoji = "✅"
+                status_text = "WIN"
+                pnl_text = f" (+{pnl:.2f}%)" if pnl else ""
+            elif status == 'sl_hit':
+                status_emoji = "❌"
+                status_text = "LOSS"
+                pnl_text = f" ({pnl:.2f}%)" if pnl else ""
+            else:
+                status_emoji = "⚪"
+                status_text = status.upper()
+                pnl_text = f" ({pnl:.2f}%)" if pnl else ""
+
+            dir_emoji = "📈" if direction == "LONG" else "📉"
+            summary_lines.append(f"{status_emoji} {dir_emoji} {direction} @ ${entry:,.2f} → {status_text}{pnl_text}")
+
+    # Portfolio summary
+    initial = portfolio.get('initial_capital', 1000)
+    current = portfolio.get('current_value', 1000)
+    total_return = ((current - initial) / initial) * 100
+
+    wins = stats.get('wins', 0)
+    losses = stats.get('losses', 0)
+    total_trades = wins + losses
+    win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+
+    summary_lines.append("")
+    summary_lines.append(f"{EMOJI['money']} <b>SIMULATION</b>")
+    summary_lines.append("─" * 20)
+    summary_lines.append(f"💰 Capital: <b>${current:,.2f}</b>")
+    if total_return >= 0:
+        summary_lines.append(f"📊 Return: <b>+{total_return:.2f}%</b>")
+    else:
+        summary_lines.append(f"📊 Return: <b>{total_return:.2f}%</b>")
+
+    if total_trades > 0:
+        summary_lines.append(f"🎯 Win Rate: {win_rate:.0f}% ({wins}W/{losses}L)")
+
+    return "\n".join(summary_lines)
+
+
 def fetch_sp500_data(days: int = 60) -> pd.DataFrame:
     """Fetch S&P 500 data using yfinance."""
     try:
@@ -572,10 +640,11 @@ def post_signal_check():
                 current_price, entry, take_profit, stop_loss, direction, confidence
             )
 
+            signals_summary = get_signals_summary()
+
             # Professional caption with all info
             if direction == "LONG":
-                caption = f"""
-🟢📈 <b>BUY SIGNAL</b> 📈🟢
+                caption = f"""🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
 💵 Entry: <code>${entry:,.2f}</code>
 🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
@@ -584,12 +653,11 @@ def post_signal_check():
 📊 Lot Size: <b>{lot_size}</b>
 ⚡ Confidence: <b>{confidence:.0f}%</b>
 📈 Risk/Reward: <b>1:{rr:.1f}</b>
+{signals_summary}
 
-#SP500 #Trading #StockMarket #SPY #TradingSignals #BuySignal #TechnicalAnalysis #DayTrading #SwingTrading #WallStreet
-"""
+#SP500 #TradingSignals #BuySignal"""
             else:
-                caption = f"""
-🔴📉 <b>SELL SIGNAL</b> 📉🔴
+                caption = f"""🔴📉 <b>SELL SIGNAL</b> 📉🔴
 
 💵 Entry: <code>${entry:,.2f}</code>
 🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
@@ -598,38 +666,37 @@ def post_signal_check():
 📊 Lot Size: <b>{lot_size}</b>
 ⚡ Confidence: <b>{confidence:.0f}%</b>
 📉 Risk/Reward: <b>1:{rr:.1f}</b>
+{signals_summary}
 
-#SP500 #Trading #StockMarket #SPY #TradingSignals #SellSignal #TechnicalAnalysis #DayTrading #SwingTrading #WallStreet
-"""
+#SP500 #TradingSignals #SellSignal"""
             return send_telegram_photo(chart_buffer, caption)
 
         except Exception as e:
             print(f"Chart error: {e}")
+            signals_summary = get_signals_summary()
             # Fallback to text
             if direction == "LONG":
-                msg = f"""
-🟢📈 <b>BUY SIGNAL</b> 📈🟢
+                msg = f"""🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
 💵 Entry: <code>${entry:,.2f}</code>
 🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
 🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 
 📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📈 R/R 1:{rr:.1f}
+{signals_summary}
 
-#SP500 #Trading #BuySignal #SPY
-"""
+#SP500 #TradingSignals #BuySignal"""
             else:
-                msg = f"""
-🔴📉 <b>SELL SIGNAL</b> 📉🔴
+                msg = f"""🔴📉 <b>SELL SIGNAL</b> 📉🔴
 
 💵 Entry: <code>${entry:,.2f}</code>
 🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
 🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
 
 📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📉 R/R 1:{rr:.1f}
+{signals_summary}
 
-#SP500 #Trading #SellSignal #SPY
-"""
+#SP500 #TradingSignals #SellSignal"""
             return send_telegram(msg)
     else:
         print(f"Confidence {confidence:.1f}% below threshold {MIN_CONFIDENCE}%")
@@ -2051,8 +2118,9 @@ def post_high_confidence_alert():
             current_price, entry, take_profit, stop_loss, direction, confidence
         )
 
-        caption = f"""
-🔥 <b>HIGH CONFIDENCE</b> 🔥
+        signals_summary = get_signals_summary()
+
+        caption = f"""🔥 <b>HIGH CONFIDENCE</b> 🔥
 
 {direction_emoji} <b>{direction} SPY</b>
 
@@ -2062,15 +2130,15 @@ Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
 
 Confidence: {confidence:.0f}%
 R/R: 1:{rr:.1f}
+{signals_summary}
 
-#SP500 #Signal
-"""
+#SP500 #Signal"""
         return send_telegram_photo(chart_buffer, caption)
 
     except Exception as e:
         print(f"Chart error: {e}")
-        msg = f"""
-🔥 <b>HIGH CONFIDENCE</b> 🔥
+        signals_summary = get_signals_summary()
+        msg = f"""🔥 <b>HIGH CONFIDENCE</b> 🔥
 
 {direction_emoji} <b>{direction} SPY</b>
 
@@ -2079,9 +2147,9 @@ Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
 Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
 
 Confidence: {confidence:.0f}%
+{signals_summary}
 
-#SP500 #Signal
-"""
+#SP500 #Signal"""
         return send_telegram(msg)
 
 
