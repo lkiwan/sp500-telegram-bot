@@ -1990,12 +1990,28 @@ def post_ml_quick_scan():
 
 
 def post_high_confidence_alert():
-    """Post ONLY if confidence >= 75% - elite signals with chart."""
+    """Post ONLY if confidence >= 70% - elite signals with chart."""
     print("Checking for high confidence signal...")
 
+    # First, check open signals for TP/SL hits
+    print("Monitoring open signals...")
     data = get_current_data()
     if not data:
         return False
+
+    # Check if any open signals hit TP or SL
+    current_price = data['close']
+    alerts = tracker.check_all_signals(current_price)
+    for alert in alerts:
+        alert_type = alert['type']
+        signal = alert['signal']
+        price = alert['price']
+        if alert_type == 'TP_HIT':
+            post_tp_hit(signal)
+            print(f"TP HIT posted for signal {signal['id']}")
+        elif alert_type == 'SL_HIT':
+            post_sl_hit(signal)
+            print(f"SL HIT posted for signal {signal['id']}")
 
     economic_data = get_economic_data()
     df = data['df']
