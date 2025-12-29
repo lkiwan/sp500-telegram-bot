@@ -15,6 +15,7 @@ from typing import Dict, List, Optional
 import pytz
 
 TZ_ET = pytz.timezone('US/Eastern')
+TZ_MOROCCO = pytz.FixedOffset(60)  # UTC+1
 
 
 class PerformanceTracker:

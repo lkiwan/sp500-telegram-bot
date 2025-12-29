@@ -74,22 +74,23 @@ jobs:
             echo "cmd=$INPUT_CMD" >> $GITHUB_OUTPUT
           else
             # Auto-determine based on current time
-            # Schedule: 10 KEY POSTS per day (all times in UTC, ET = UTC-5)
+            # Schedule: Posts per day (UTC times, ET=UTC-5, Morocco=UTC+1)
             #
-            # | ET Time  | UTC Time | Post Type        |
-            # |----------|----------|------------------|
-            # | 8:00 AM  | 13:00    | Morning Briefing |
-            # | 9:30 AM  | 14:30    | Market Open      |
-            # | 10:30 AM | 15:30    | Sentiment        |
-            # | 12:00 PM | 17:00    | Technical        |
-            # | 1:30 PM  | 18:30    | Economic Update  |
-            # | 2:30 PM  | 19:30    | Signal Check     |
-            # | 3:30 PM  | 20:30    | Pre-Close        |
-            # | 4:00 PM  | 21:00    | Market Close     |
-            # | 5:00 PM  | 22:00    | After Hours      |
-            # | Fri 5PM  | 22:00    | Weekly Report    |
-            #
-            # Elite scans run every 30 min during market hours (14:30-21:00 UTC)
+            # | ET Time  | UTC  | Morocco | Post Type        |
+            # |----------|------|---------|------------------|
+            # | 8:00 AM  | 13:00| 14:00   | Morning Briefing |
+            # | 9:30 AM  | 14:30| 15:30   | Market Open      |
+            # | 10:30 AM | 15:30| 16:30   | Sentiment        |
+            # | 11:00 AM | 16:00| 17:00   | Update           |
+            # | 12:00 PM | 17:00| 18:00   | Technical+SIGNAL |
+            # | 1:00 PM  | 18:00| 19:00   | Update           |
+            # | 1:30 PM  | 18:30| 19:30   | Economic         |
+            # | 2:30 PM  | 19:30| 20:30   | Signal Check     |
+            # | 3:00 PM  | 20:00| 21:00   | Update           |
+            # | 3:30 PM  | 20:30| 21:30   | Pre-Close        |
+            # | 4:00 PM  | 21:00| 22:00   | Market Close     |
+            # | 4:30 PM  | 21:30| 22:30   | Daily Analysis   |
+            # | 5:00 PM  | 22:00| 23:00   | After/Weekly     |
 
             HOUR=$(date -u +%-H)
             MIN=$(date -u +%-M)

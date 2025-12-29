@@ -42,7 +42,8 @@ MIN_CONFIDENCE = 50
 
 # Timezones
 TZ_ET = pytz.timezone('US/Eastern')
-TZ_MOROCCO = pytz.timezone('Africa/Casablanca')
+# Morocco is currently on UTC+1 (WET+1) - using fixed offset for reliability
+TZ_MOROCCO = pytz.FixedOffset(60)  # UTC+1 = 60 minutes
 
 
 def get_dual_time() -> str:
@@ -65,6 +66,15 @@ def get_time_header() -> str:
     time_morocco = now_morocco.strftime('%H:%M')
 
     return f"📅 {date_str}\n🇺🇸 {time_et} ET | 🇲🇦 {time_morocco} Morocco"
+
+
+def get_market_hours_info() -> str:
+    """Get market hours in both timezones."""
+    return """
+<b>🕐 Market Hours</b>
+Open: 🇺🇸 9:30 AM ET | 🇲🇦 15:30
+Close: 🇺🇸 4:00 PM ET | 🇲🇦 22:00
+"""
 
 # Initialize components
 charts = ChartGenerator()
