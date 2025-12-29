@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from io import BytesIO
+import pytz
 
 # Import custom modules
 from styles import EMOJI, get_hashtags
@@ -37,6 +38,32 @@ FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
 
 # Thresholds
 MIN_CONFIDENCE = 50
+
+# Timezones
+TZ_ET = pytz.timezone('US/Eastern')
+TZ_MOROCCO = pytz.timezone('Africa/Casablanca')
+
+
+def get_dual_time() -> str:
+    """Get current time in both ET and Morocco format."""
+    now_utc = datetime.now(pytz.UTC)
+    now_et = now_utc.astimezone(TZ_ET)
+    now_morocco = now_utc.astimezone(TZ_MOROCCO)
+
+    return f"🇺🇸 {now_et.strftime('%I:%M %p')} ET | 🇲🇦 {now_morocco.strftime('%H:%M')} Morocco"
+
+
+def get_time_header() -> str:
+    """Get formatted time header with both timezones."""
+    now_utc = datetime.now(pytz.UTC)
+    now_et = now_utc.astimezone(TZ_ET)
+    now_morocco = now_utc.astimezone(TZ_MOROCCO)
+
+    date_str = now_et.strftime('%b %d, %Y')
+    time_et = now_et.strftime('%I:%M %p')
+    time_morocco = now_morocco.strftime('%H:%M')
+
+    return f"📅 {date_str}\n🇺🇸 {time_et} ET | 🇲🇦 {time_morocco} Morocco"
 
 # Initialize components
 charts = ChartGenerator()
@@ -383,8 +410,12 @@ def post_morning_briefing():
     support = current * 0.99
     resistance = current * 1.01
 
+    time_header = get_time_header()
+
     msg = f"""
 ☀️ <b>MORNING BRIEFING</b> ☀️
+
+{time_header}
 
 Good morning traders!
 
@@ -525,27 +556,27 @@ def post_technical_analysis():
             show_sma=True
         )
 
+        time_header = get_time_header()
+
         caption = f"""
 📊 <b>TECHNICAL ANALYSIS</b> 📊
 
-{dir_emoji}{dir_emoji}{dir_emoji} <b>TODAY'S SIGNAL: {dir_text}</b> {dir_emoji}{dir_emoji}{dir_emoji}
+{time_header}
+
+{dir_emoji}{dir_emoji}{dir_emoji} <b>SIGNAL: {dir_text}</b> {dir_emoji}{dir_emoji}{dir_emoji}
 <b>Confidence:</b> {confidence:.0f}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
 <b>S&P 500:</b> ${data['close']:,.2f} ({data['change_pct']:+.2f}%)
 
-<b>Indicators:</b>
 • Trend: {trend}
 • RSI: {rsi:.0f} ({rsi_text})
 • MACD: {'🟢 Bullish' if macd_bullish else '🔴 Bearish'}
-• VIX: {vix:.1f}
 
-━━━━━━━━━━━━━━━━━━━━
+<i>Hold 1 day | 71% win rate</i>
 
-<i>Hold 1 day | Model: 71% win rate</i>
-
-#SP500 #TechnicalAnalysis #DailySignal #{dir_text}
+#SP500 #TechnicalAnalysis #{dir_text}
 """
         return send_telegram_photo(chart_buffer, caption[:1024])
 
@@ -614,8 +645,12 @@ def post_economic_dashboard():
     try:
         chart_buffer = charts.generate_economic_dashboard(econ_data)
 
+        time_header = get_time_header()
+
         caption = f"""
 🏛️ <b>FUNDAMENTAL ANALYSIS</b> 🏛️
+
+{time_header}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -808,8 +843,12 @@ def post_signal_check():
     else:
         conf_text = "⚠️ Low"
 
+    time_header = get_time_header()
+
     msg = f"""
 {dir_emoji}{dir_emoji}{dir_emoji} <b>DAILY SIGNAL</b> {dir_emoji}{dir_emoji}{dir_emoji}
+
+{time_header}
 
 <b>Direction:</b> {dir_text}
 <b>Confidence:</b> {confidence:.0f}% ({conf_text})
@@ -858,20 +897,21 @@ def post_signal_update():
     dir_emoji = "🟢" if direction == "LONG" else "🔴"
     dir_text = "UP" if direction == "LONG" else "DOWN"
 
-    # Check if signal changed
-    change_note = ""
+    dual_time = get_dual_time()
 
     msg = f"""
-{dir_emoji} <b>Signal Update</b>
+{dir_emoji} <b>SIGNAL UPDATE</b>
+
+{dual_time}
 
 <b>Direction:</b> {dir_text}
 <b>Confidence:</b> {confidence:.0f}%
 
+━━━━━━━━━━━━━━━━━━━━
+
 <b>S&P 500:</b> ${current_price:,.2f} ({data['change_pct']:+.2f}%)
 <b>RSI:</b> {data['rsi']:.0f}
 <b>VIX:</b> {economic_data.get('vix', 20):.1f}
-
-{change_note}
 
 #SP500 #SignalUpdate
 """
@@ -890,25 +930,43 @@ def post_market_close():
 
     change_emoji = "📈" if data['change_pct'] > 0 else ("📉" if data['change_pct'] < 0 else "➡️")
 
-    # Signal performance
-    if daily_perf['trades'] > 0:
-        signal_text = f"Signals: {daily_perf['trades']} | {daily_perf['win_rate']:.0f}% win"
+    time_header = get_time_header()
+
+    # Day result
+    if data['change_pct'] > 0.5:
+        result = "🟢🟢 Strong Up"
+    elif data['change_pct'] > 0:
+        result = "🟢 Up"
+    elif data['change_pct'] > -0.5:
+        result = "🔴 Down"
     else:
-        signal_text = ""
+        result = "🔴🔴 Strong Down"
 
     msg = f"""
-🔔 <b>Market Close</b>
+🔔 <b>MARKET CLOSE</b> 🔔
 
-{change_emoji} ${data['close']:,.0f} ({data['change_pct']:+.1f}%)
+{time_header}
 
-High: ${data['high']:,.0f}
-Low: ${data['low']:,.0f}
+━━━━━━━━━━━━━━━━━━━━
 
-RSI: {data['rsi']:.0f} | MACD: {'Up' if data['macd_hist'] > 0 else 'Down'}
+{change_emoji} <b>S&P 500:</b> ${data['close']:,.2f}
+{change_emoji} <b>Change:</b> {data['change_pct']:+.2f}% ({result})
 
-{signal_text}
+━━━━━━━━━━━━━━━━━━━━
 
-#SP500 #Close
+<b>Day Range:</b>
+• High: ${data['high']:,.2f}
+• Low: ${data['low']:,.2f}
+
+<b>Indicators:</b>
+• RSI: {data['rsi']:.0f}
+• MACD: {'🟢 Bullish' if data['macd_hist'] > 0 else '🔴 Bearish'}
+
+━━━━━━━━━━━━━━━━━━━━
+
+See you tomorrow, traders! 👋
+
+#SP500 #MarketClose #Trading
 """
     return send_telegram(msg)
 
@@ -1771,29 +1829,27 @@ def post_preclose():
     else:
         rsi_note = "📊 RSI in normal range"
 
-    # Open signals check
-    open_signals = [s for s in tracker.data.get('signals', []) if s.get('status') == 'OPEN']
+    dual_time = get_dual_time()
 
     msg = f"""
-🔔 <b>PRE-CLOSE CHECK</b>
+🔔 <b>PRE-CLOSE CHECK</b> 🔔
+
+{dual_time}
 
 30 minutes until the bell!
 
+━━━━━━━━━━━━━━━━━━━━
+
 <b>Day Summary:</b>
-💵 S&P 500: ${data['close']:,.0f}
+💵 S&P 500: ${data['close']:,.2f}
 📊 Change: {data['change_pct']:+.2f}%
 📈 RSI: {data['rsi']:.0f}
+
+━━━━━━━━━━━━━━━━━━━━
 
 <b>Status:</b>
 {day_status}
 {rsi_note}
-
-<b>Open Signals:</b> {len(open_signals)}
-
-<b>Final Hour Tips:</b>
-• Watch for closing momentum
-• Consider position sizing
-• Set alerts for key levels
 
 See you at the close! 🔔
 
