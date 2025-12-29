@@ -1,10 +1,8 @@
 name: S&P 500 Professional Bot
 
 on:
-  schedule:
-    # BACKUP CRON - Every 15 min (in case cron-job.org fails)
-    # Primary scheduler: cron-job.org (every 5 min, more reliable)
-    - cron: '0,15,30,45 12-23 * * 1-5'
+  # NO GitHub cron - 100% triggered by cron-job.org (every 5 min, reliable)
+  # GitHub cron is unreliable with delays of 20-60+ minutes
 
   workflow_dispatch:
     inputs:
