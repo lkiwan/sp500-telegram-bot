@@ -1,0 +1,16 @@
+{
+  "summary": {
+    "initial_capital": 10000.0,
+    "final_capital": 13658.79332524279,
+    "total_return_pct": 36.5879332524279,
+    "win_rate": 71.57622739018088,
+    "buy_hold_return": 33.17788164471852,
+    "outperformance": 3.4100516077093843
+  },
+  "results_breakdown": {
+    "WIN": 191,
+    "CORRECT_SAVE": 86,
+    "MISSED_GAIN": 33,
+    "LOSS": 77
+  }
+}
