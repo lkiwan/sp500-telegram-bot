@@ -72,11 +72,12 @@ class Backtester:
         self.equity_curve: List[Tuple[datetime, float]] = []
         self.daily_pnl: Dict[str, float] = {}
 
-        # Configuration
+        # Configuration - Trust the model (71% win rate)
         self.MAX_OPEN_TRADES = 5
-        self.MIN_CONFIDENCE = 81
+        self.MIN_CONFIDENCE = 70  # Lowered to match model's win rate
         self.MAX_DAILY_LOSS_PCT = -2.0
         self.MAX_DAILY_TRADES = 10
+        self.USE_STRICT_FILTERS = False  # Disabled - trust the model
 
         # VIX-based TP/SL settings
         self.VIX_LEVELS = {
@@ -385,24 +386,26 @@ class Backtester:
 
             # Check for new signal
             if direction and confidence >= self.MIN_CONFIDENCE:
-                # Apply filters
                 vix = row.get('vix', 20)
-                volume = row.get('volume', 0)
-                avg_volume = row.get('avg_volume', volume)
-                sma50 = row.get('sma50', row['close'])
 
-                # Volume check
-                if not self.check_volume(volume, avg_volume):
-                    continue
+                # Only apply strict filters if enabled
+                if self.USE_STRICT_FILTERS:
+                    volume = row.get('volume', 0)
+                    avg_volume = row.get('avg_volume', volume)
+                    sma50 = row.get('sma50', row['close'])
 
-                # Trend alignment
-                aligned, multiplier = self.check_trend_alignment(row['close'], sma50, direction)
-                adjusted_confidence = confidence * multiplier
+                    # Volume check
+                    if not self.check_volume(volume, avg_volume):
+                        continue
 
-                if adjusted_confidence < self.MIN_CONFIDENCE:
-                    continue
+                    # Trend alignment
+                    aligned, multiplier = self.check_trend_alignment(row['close'], sma50, direction)
+                    adjusted_confidence = confidence * multiplier
 
-                # Open trade
+                    if adjusted_confidence < self.MIN_CONFIDENCE:
+                        continue
+
+                # Open trade - trust the model
                 trade = self.open_trade(
                     date=date,
                     direction=direction,

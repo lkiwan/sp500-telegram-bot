@@ -30,6 +30,7 @@ from content_database import (
     TRADING_WISDOM, TRADING_THEORY, HISTORICAL_EVENTS
 )
 from risk_manager import risk_manager
+from performance_tracker import performance_tracker
 
 # Configuration from GitHub Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -967,6 +968,139 @@ def post_market_close():
 See you tomorrow, traders! 👋
 
 #SP500 #MarketClose #Trading
+"""
+    return send_telegram(msg)
+
+
+def post_daily_analysis():
+    """
+    Post end-of-day analysis with signal result.
+    Shows: Today's result + recent days + streaks
+    """
+    print("Posting daily analysis...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+
+    # Get today's signal
+    prediction = ml_predictor.predict(df, economic_data)
+    direction = "UP" if prediction['direction'] == "LONG" else "DOWN"
+    confidence = prediction['confidence']
+
+    today = datetime.now(TZ_ET).strftime('%Y-%m-%d')
+    entry_price = data['prev_close']  # Yesterday's close = today's entry
+    close_price = data['close']       # Today's close
+
+    # Record the signal result
+    performance_tracker.record_daily_signal(
+        date=today,
+        direction=direction,
+        confidence=confidence,
+        entry_price=entry_price,
+        close_price=close_price
+    )
+
+    # Generate analysis
+    analysis = performance_tracker.generate_daily_analysis()
+    time_header = get_time_header()
+
+    # Determine if signal was correct
+    actual_change = ((close_price - entry_price) / entry_price) * 100
+    if direction == "UP":
+        is_correct = actual_change > 0
+    else:
+        is_correct = actual_change < 0
+
+    result_emoji = "✅ WIN" if is_correct else "❌ LOSS"
+    dir_emoji = "🟢" if direction == "UP" else "🔴"
+
+    msg = f"""
+📊 <b>DAILY ANALYSIS</b> 📊
+
+{time_header}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>TODAY'S SIGNAL RESULT</b>
+
+{dir_emoji} Prediction: <b>{direction}</b>
+📈 Market Move: <b>{actual_change:+.2f}%</b>
+{result_emoji}
+
+━━━━━━━━━━━━━━━━━━━━
+{analysis}
+
+#SP500 #DailyAnalysis #Performance
+"""
+    return send_telegram(msg)
+
+
+def post_weekly_analysis():
+    """
+    Post weekly analysis with comparison to previous weeks.
+    Shows: This week + last 2 weeks + all-time
+    """
+    print("Posting weekly analysis...")
+
+    analysis = performance_tracker.generate_weekly_analysis()
+    time_header = get_time_header()
+
+    # Get current week stats for header
+    current_week = performance_tracker.get_week_stats(0)
+
+    if current_week['win_rate'] >= 70:
+        header_emoji = "🏆🏆🏆"
+    elif current_week['win_rate'] >= 50:
+        header_emoji = "✅✅"
+    else:
+        header_emoji = "📊"
+
+    msg = f"""
+{header_emoji} <b>WEEKLY ANALYSIS</b> {header_emoji}
+
+{time_header}
+
+━━━━━━━━━━━━━━━━━━━━
+{analysis}
+
+#SP500 #WeeklyAnalysis #Performance
+"""
+    return send_telegram(msg)
+
+
+def post_monthly_analysis():
+    """
+    Post monthly analysis with all weeks breakdown.
+    Shows: This month + weeks + last month + all-time
+    """
+    print("Posting monthly analysis...")
+
+    analysis = performance_tracker.generate_monthly_analysis()
+    time_header = get_time_header()
+
+    # Get current month stats
+    current_month = performance_tracker.get_month_stats(0)
+
+    if current_month['win_rate'] >= 70:
+        header_emoji = "🏆🏆🏆"
+    elif current_month['win_rate'] >= 50:
+        header_emoji = "📈📈"
+    else:
+        header_emoji = "📊"
+
+    msg = f"""
+{header_emoji} <b>MONTHLY ANALYSIS</b> {header_emoji}
+
+{time_header}
+
+━━━━━━━━━━━━━━━━━━━━
+{analysis}
+
+#SP500 #MonthlyAnalysis #Performance
 """
     return send_telegram(msg)
 
@@ -2757,8 +2891,14 @@ COMMANDS = {
     'tomorrow': post_tomorrow_preview,
     'gn': post_good_night,
     'good_night': post_good_night,
+    # Analysis (cumulative performance tracking)
+    'daily_analysis': post_daily_analysis,
+    'analysis': post_daily_analysis,
+    'weekly_analysis': post_weekly_analysis,
+    'monthly_analysis': post_monthly_analysis,
+    'monthly': post_monthly_analysis,
     # Weekly
-    'weekly': post_weekly_report,
+    'weekly': post_weekly_analysis,  # Changed to weekly analysis
     'weekly_report': post_weekly_report,
     'week_ahead': post_week_ahead,
     # Branding

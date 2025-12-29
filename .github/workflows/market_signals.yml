@@ -23,8 +23,10 @@ on:
           - update
           - preclose
           - close
+          - analysis
           - after
           - weekly
+          - monthly
           - simulation
 
 permissions:
@@ -126,12 +128,26 @@ jobs:
               # 4:00 PM ET - Market Close
               echo "cmd=close" >> $GITHUB_OUTPUT
 
+            elif [ "$HOUR" -eq 21 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 4:30 PM ET - Daily Analysis (signal result)
+              echo "cmd=analysis" >> $GITHUB_OUTPUT
+
             elif [ "$HOUR" -eq 22 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
-              # 5:00 PM ET - After Hours or Weekly (Friday)
+              # 5:00 PM ET - After Hours or Weekly Analysis (Friday)
               if [ "$DOW" -eq 5 ]; then
+                # Friday: Weekly Analysis
                 echo "cmd=weekly" >> $GITHUB_OUTPUT
               else
                 echo "cmd=after" >> $GITHUB_OUTPUT
+              fi
+
+            elif [ "$HOUR" -eq 22 ] && [ "$MIN" -ge 30 ] && [ "$MIN" -lt 35 ]; then
+              # 5:30 PM ET - Monthly Analysis (last Friday of month)
+              DAY=$(date -u +%-d)
+              if [ "$DOW" -eq 5 ] && [ "$DAY" -ge 25 ]; then
+                echo "cmd=monthly" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=skip" >> $GITHUB_OUTPUT
               fi
 
             # Hourly signal updates during market hours (on the hour, not on key post times)
