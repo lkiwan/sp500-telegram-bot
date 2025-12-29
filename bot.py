@@ -866,7 +866,8 @@ def post_signal_check():
 
 ━━━━━━━━━━━━━━━━━━━━
 
-<b>S&P 500 Entry:</b> ${current_price:,.2f}
+<b>S&P 500:</b> ${current_price:,.2f}
+<b>Day Change:</b> {data['change_pct']:+.2f}%
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -885,15 +886,18 @@ Model Win Rate: 71%</i>
 
 #SP500 #DailySignal #{dir_text}
 """
-    # Record the signal entry for P&L tracking
+    # Record the signal entry for P&L tracking (only first signal of the day)
     today = datetime.now(TZ_ET).strftime('%Y-%m-%d')
-    performance_tracker.record_daily_signal(
-        date=today,
-        direction=dir_text,
-        confidence=confidence,
-        entry_price=current_price,
-        close_price=None  # Will be updated at market close
-    )
+    existing = performance_tracker.get_today_result()
+    if not existing:
+        # First signal of the day - record entry
+        performance_tracker.record_daily_signal(
+            date=today,
+            direction=dir_text,
+            confidence=confidence,
+            entry_price=current_price,
+            close_price=None  # Will be updated at market close
+        )
 
     return send_telegram(msg)
 
