@@ -2,50 +2,70 @@ name: S&P 500 Professional Bot
 
 on:
   schedule:
-    # ===== DAILY SCHEDULE (Mon-Fri, UTC times) =====
-    # Simplified to 15 essential posts for reliability
+    # ===== EVERY 15 MINUTES SCHEDULE (Mon-Fri, UTC times) =====
+    # Total: ~40 posts per day with varied content
 
-    # Monday Earnings Calendar - 12:30 UTC (7:30 AM ET)
-    - cron: '30 12 * * 1'
+    # PRE-MARKET (7:00 AM - 9:30 AM ET = 12:00 - 14:30 UTC)
+    - cron: '0 12 * * 1-5'   # 7:00 AM - Good Morning
+    - cron: '15 12 * * 1-5'  # 7:15 AM - Trading Wisdom
+    - cron: '30 12 * * 1-5'  # 7:30 AM - Earnings (Monday) / Premarket
+    - cron: '45 12 * * 1-5'  # 7:45 AM - Premarket Movers
+    - cron: '0 13 * * 1-5'   # 8:00 AM - Morning Briefing
+    - cron: '15 13 * * 1-5'  # 8:15 AM - Economic Calendar
+    - cron: '30 13 * * 1-5'  # 8:30 AM - News
+    - cron: '45 13 * * 1-5'  # 8:45 AM - Sector Watch
+    - cron: '0 14 * * 1-5'   # 9:00 AM - Trading Theory
+    - cron: '15 14 * * 1-5'  # 9:15 AM - Technical Analysis
 
-    # Morning Briefing - 13:00 UTC (8:00 AM ET)
-    - cron: '0 13 * * 1-5'
+    # MARKET OPEN (9:30 AM - 12:00 PM ET = 14:30 - 17:00 UTC)
+    - cron: '30 14 * * 1-5'  # 9:30 AM - Market Open
+    - cron: '45 14 * * 1-5'  # 9:45 AM - Opening Analysis
+    - cron: '0 15 * * 1-5'   # 10:00 AM - Signal Check
+    - cron: '15 15 * * 1-5'  # 10:15 AM - Momentum
+    - cron: '30 15 * * 1-5'  # 10:30 AM - Sentiment
+    - cron: '45 15 * * 1-5'  # 10:45 AM - Trend Check
+    - cron: '0 16 * * 1-5'   # 11:00 AM - Signal Check
+    - cron: '15 16 * * 1-5'  # 11:15 AM - Historical Pattern
+    - cron: '30 16 * * 1-5'  # 11:30 AM - Risk Check
+    - cron: '45 16 * * 1-5'  # 11:45 AM - Trading Tip
 
-    # Market Open - 14:30 UTC (9:30 AM ET)
-    - cron: '30 14 * * 1-5'
+    # MIDDAY (12:00 PM - 2:00 PM ET = 17:00 - 19:00 UTC)
+    - cron: '0 17 * * 1-5'   # 12:00 PM - Midday Recap
+    - cron: '15 17 * * 1-5'  # 12:15 PM - Theory
+    - cron: '30 17 * * 1-5'  # 12:30 PM - News
+    - cron: '45 17 * * 1-5'  # 12:45 PM - Why Market Moved
+    - cron: '0 18 * * 1-5'   # 1:00 PM - Signal Check
+    - cron: '15 18 * * 1-5'  # 1:15 PM - Factors Analysis
+    - cron: '30 18 * * 1-5'  # 1:30 PM - Economic Dashboard
+    - cron: '45 18 * * 1-5'  # 1:45 PM - Simulation Update
 
-    # Mid-Morning Signal - 15:00 UTC (10:00 AM ET)
-    - cron: '0 15 * * 1-5'
+    # AFTERNOON (2:00 PM - 3:00 PM ET = 19:00 - 20:00 UTC)
+    - cron: '0 19 * * 1-5'   # 2:00 PM - Signal Check
+    - cron: '15 19 * * 1-5'  # 2:15 PM - Volume Analysis
+    - cron: '30 19 * * 1-5'  # 2:30 PM - Trend Check
+    - cron: '45 19 * * 1-5'  # 2:45 PM - Wisdom
 
-    # Mid-Morning Sentiment - 15:30 UTC (10:30 AM ET)
-    - cron: '30 15 * * 1-5'
+    # POWER HOUR (3:00 PM - 4:00 PM ET = 20:00 - 21:00 UTC)
+    - cron: '0 20 * * 1-5'   # 3:00 PM - Power Hour
+    - cron: '15 20 * * 1-5'  # 3:15 PM - Momentum
+    - cron: '30 20 * * 1-5'  # 3:30 PM - Sentiment
+    - cron: '45 20 * * 1-5'  # 3:45 PM - Position Check
 
-    # Late Morning Signal - 16:00 UTC (11:00 AM ET)
-    - cron: '0 16 * * 1-5'
+    # MARKET CLOSE & AFTER (4:00 PM - 6:00 PM ET = 21:00 - 23:00 UTC)
+    - cron: '0 21 * * 1-5'   # 4:00 PM - Market Close
+    - cron: '15 21 * * 1-5'  # 4:15 PM - Daily Recap
+    - cron: '30 21 * * 1-5'  # 4:30 PM - Simulation Update
+    - cron: '45 21 * * 1-5'  # 4:45 PM - Trading Journal
+    - cron: '0 22 * * 1-5'   # 5:00 PM - Tomorrow Preview
+    - cron: '15 22 * * 1-5'  # 5:15 PM - After Hours
+    - cron: '30 22 * * 1-5'  # 5:30 PM - Tip
+    - cron: '0 23 * * 1-5'   # 6:00 PM - Good Night
 
-    # Lunch Technical - 17:00 UTC (12:00 PM ET)
-    - cron: '0 17 * * 1-5'
+    # FRIDAY SPECIAL
+    - cron: '0 22 * * 5'     # Friday 5:00 PM - Weekly Report
 
-    # Afternoon Signal - 18:00 UTC (1:00 PM ET)
-    - cron: '0 18 * * 1-5'
-
-    # Afternoon News - 18:30 UTC (1:30 PM ET)
-    - cron: '30 18 * * 1-5'
-
-    # Afternoon Signal - 19:00 UTC (2:00 PM ET)
-    - cron: '0 19 * * 1-5'
-
-    # Pre-Close Signal - 20:00 UTC (3:00 PM ET)
-    - cron: '0 20 * * 1-5'
-
-    # Pre-Close Sentiment - 20:30 UTC (3:30 PM ET)
-    - cron: '30 20 * * 1-5'
-
-    # Market Close - 21:00 UTC (4:00 PM ET)
-    - cron: '0 21 * * 1-5'
-
-    # Weekly Report - Friday 22:00 UTC (5:00 PM ET)
-    - cron: '0 22 * * 5'
+    # MONDAY SPECIAL
+    - cron: '30 12 * * 1'    # Monday 7:30 AM - Week Ahead
 
   workflow_dispatch:
     inputs:
@@ -56,17 +76,20 @@ on:
         type: choice
         options:
           - test
+          - gm
           - morning
+          - premarket
+          - wisdom
+          - theory
+          - calendar
           - open
+          - opening
           - sentiment
           - signal
           - technical
           - economic
           - close
           - weekly
-          - welcome
-          - logo
-          - banner
           - news
           - earnings
           - monitor
@@ -74,7 +97,22 @@ on:
           - elite
           - momentum
           - risk
-          - quick
+          - history
+          - why
+          - midday
+          - sector
+          - trend
+          - volume
+          - tip
+          - simulation
+          - positions
+          - power
+          - recap
+          - journal
+          - after
+          - tomorrow
+          - gn
+          - week_ahead
 
 permissions:
   contents: write
@@ -121,45 +159,140 @@ jobs:
             MIN=$(date -u +%M)
             DOW=$(date -u +%u)
 
-            # Monday 12:30 - Earnings Calendar
-            if [ "$DOW" == "1" ] && [ "$HOUR" == "12" ]; then
-              echo "cmd=earnings" >> $GITHUB_OUTPUT
-            # Friday 22:00 - Weekly Report
-            elif [ "$DOW" == "5" ] && [ "$HOUR" == "22" ]; then
-              echo "cmd=weekly" >> $GITHUB_OUTPUT
-            # 13:00 - Morning Briefing
+            # PRE-MARKET POSTS (12:00-14:30 UTC = 7:00-9:30 AM ET)
+            if [ "$HOUR" == "12" ]; then
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=gm" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=wisdom" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                if [ "$DOW" == "1" ]; then
+                  echo "cmd=week_ahead" >> $GITHUB_OUTPUT
+                else
+                  echo "cmd=earnings" >> $GITHUB_OUTPUT
+                fi
+              else
+                echo "cmd=premarket" >> $GITHUB_OUTPUT
+              fi
+
             elif [ "$HOUR" == "13" ]; then
-              echo "cmd=morning" >> $GITHUB_OUTPUT
-            # 14:30 - Market Open
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=morning" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=calendar" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=news" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=sector" >> $GITHUB_OUTPUT
+              fi
+
             elif [ "$HOUR" == "14" ]; then
-              echo "cmd=open" >> $GITHUB_OUTPUT
-            # 15:00 - Signal, 15:30 - Sentiment
-            elif [ "$HOUR" == "15" ] && [ "$MIN" -lt "15" ]; then
-              echo "cmd=signal" >> $GITHUB_OUTPUT
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=theory" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=technical" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=open" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=opening" >> $GITHUB_OUTPUT
+              fi
+
+            # MARKET HOURS (15:00-17:00 UTC = 10:00-12:00 PM ET)
             elif [ "$HOUR" == "15" ]; then
-              echo "cmd=sentiment" >> $GITHUB_OUTPUT
-            # 16:00 - Signal
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=signal" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=momentum" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=sentiment" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=trend" >> $GITHUB_OUTPUT
+              fi
+
             elif [ "$HOUR" == "16" ]; then
-              echo "cmd=signal" >> $GITHUB_OUTPUT
-            # 17:00 - Technical Analysis
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=signal" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=history" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=risk" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=tip" >> $GITHUB_OUTPUT
+              fi
+
+            # MIDDAY (17:00-19:00 UTC = 12:00-2:00 PM ET)
             elif [ "$HOUR" == "17" ]; then
-              echo "cmd=technical" >> $GITHUB_OUTPUT
-            # 18:00 - Signal, 18:30 - News
-            elif [ "$HOUR" == "18" ] && [ "$MIN" -lt "15" ]; then
-              echo "cmd=signal" >> $GITHUB_OUTPUT
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=midday" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=theory" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=news" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=why" >> $GITHUB_OUTPUT
+              fi
+
             elif [ "$HOUR" == "18" ]; then
-              echo "cmd=news" >> $GITHUB_OUTPUT
-            # 19:00 - Signal
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=signal" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=factors" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=economic" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=simulation" >> $GITHUB_OUTPUT
+              fi
+
+            # AFTERNOON (19:00-20:00 UTC = 2:00-3:00 PM ET)
             elif [ "$HOUR" == "19" ]; then
-              echo "cmd=signal" >> $GITHUB_OUTPUT
-            # 20:00 - Signal, 20:30 - Sentiment
-            elif [ "$HOUR" == "20" ] && [ "$MIN" -lt "15" ]; then
-              echo "cmd=signal" >> $GITHUB_OUTPUT
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=signal" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=volume" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=trend" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=wisdom" >> $GITHUB_OUTPUT
+              fi
+
+            # POWER HOUR (20:00-21:00 UTC = 3:00-4:00 PM ET)
             elif [ "$HOUR" == "20" ]; then
-              echo "cmd=sentiment" >> $GITHUB_OUTPUT
-            # 21:00 - Market Close
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=power" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=momentum" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=sentiment" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=positions" >> $GITHUB_OUTPUT
+              fi
+
+            # CLOSE & AFTER (21:00-23:00 UTC = 4:00-6:00 PM ET)
             elif [ "$HOUR" == "21" ]; then
-              echo "cmd=close" >> $GITHUB_OUTPUT
+              if [ "$MIN" -lt "10" ]; then
+                echo "cmd=close" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=recap" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "35" ]; then
+                echo "cmd=simulation" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=journal" >> $GITHUB_OUTPUT
+              fi
+
+            elif [ "$HOUR" == "22" ]; then
+              if [ "$DOW" == "5" ] && [ "$MIN" -lt "10" ]; then
+                echo "cmd=weekly" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "10" ]; then
+                echo "cmd=tomorrow" >> $GITHUB_OUTPUT
+              elif [ "$MIN" -lt "20" ]; then
+                echo "cmd=after" >> $GITHUB_OUTPUT
+              else
+                echo "cmd=tip" >> $GITHUB_OUTPUT
+              fi
+
+            elif [ "$HOUR" == "23" ]; then
+              echo "cmd=gn" >> $GITHUB_OUTPUT
+
             # Default
             else
               echo "cmd=signal" >> $GITHUB_OUTPUT

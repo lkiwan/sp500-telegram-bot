@@ -21,6 +21,13 @@ from signal_tracker import SignalTracker
 from branding import post_welcome_message, post_logo, post_banner, get_channel_description
 from news_fetcher import NewsFetcher, format_news_post, format_earnings_post
 from ml_predictor import MLPredictor
+from content_database import (
+    get_random_wisdom, get_random_theory, get_random_history,
+    get_wisdom_by_index, get_theory_by_index, get_history_for_today,
+    get_day_of_year_index, get_morning_greeting, get_night_greeting,
+    get_encouragement, get_win_phrase, get_loss_phrase,
+    TRADING_WISDOM, TRADING_THEORY, HISTORICAL_EVENTS
+)
 
 # Configuration from GitHub Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -1001,6 +1008,911 @@ def post_earnings():
 
 
 # ============================================
+# NEW INTERACTIVE POSTS
+# ============================================
+
+def post_good_morning():
+    """Post good morning message with daily outlook."""
+    print("Posting good morning...")
+
+    data = get_current_data()
+    today = datetime.now().strftime("%A, %B %d")
+
+    # Get futures/overnight sentiment
+    if data:
+        change_pct = data['change_pct']
+        if change_pct > 0.5:
+            vibe = "🟢 Bullish vibes today!"
+            futures = f"📈 Futures up +{change_pct:.2f}%"
+        elif change_pct < -0.5:
+            vibe = "🔴 Cautious start today"
+            futures = f"📉 Futures down {change_pct:.2f}%"
+        else:
+            vibe = "🟡 Neutral open expected"
+            futures = f"➡️ Futures flat {change_pct:+.2f}%"
+    else:
+        vibe = "🟡 Let's see what happens!"
+        futures = "📊 Checking the charts..."
+
+    greeting = get_morning_greeting()
+    encouragement = get_encouragement()
+
+    msg = f"""
+☀️ {greeting}
+
+📅 It's {today}
+
+{futures}
+
+{vibe}
+
+{encouragement}
+
+#SP500 #GoodMorning #Trading #StockMarket #WallStreet
+"""
+    return send_telegram(msg)
+
+
+def post_good_night():
+    """Post good night message with daily summary."""
+    print("Posting good night...")
+
+    data = get_current_data()
+    summary = tracker.get_performance_summary()
+    daily_perf = tracker.get_daily_performance()
+
+    greeting = get_night_greeting()
+
+    if data:
+        change_emoji = "📈" if data['change_pct'] > 0 else "📉"
+        market_summary = f"{change_emoji} Market: {data['change_pct']:+.2f}%"
+    else:
+        market_summary = "📊 Market closed"
+
+    if daily_perf['trades'] > 0:
+        signal_summary = f"📊 Signals: {daily_perf['wins']}W / {daily_perf['losses']}L"
+    else:
+        signal_summary = "📊 No signals today"
+
+    portfolio_value = f"💰 Portfolio: ${summary['portfolio_value']:,.2f}"
+
+    msg = f"""
+🌙 {greeting}
+
+<b>Today's Summary:</b>
+{market_summary}
+{signal_summary}
+{portfolio_value}
+
+Rest up and recharge! 💤
+
+Tomorrow is a new opportunity! 🚀
+
+#SP500 #GoodNight #Trading #StockMarket
+"""
+    return send_telegram(msg)
+
+
+def post_trading_wisdom():
+    """Post trading wisdom quote with lesson."""
+    print("Posting trading wisdom...")
+
+    # Use day of year for rotation
+    index = get_day_of_year_index()
+    wisdom = get_wisdom_by_index(index)
+
+    msg = f"""
+🧠 <b>Trading Wisdom</b>
+
+"<i>{wisdom['quote']}</i>"
+— {wisdom['author']}
+
+💡 <b>The Lesson:</b>
+{wisdom['lesson']}
+
+Apply this today! 💪
+
+#SP500 #TradingWisdom #Trading #LearnToTrade #Motivation
+"""
+    return send_telegram(msg)
+
+
+def post_trading_theory():
+    """Post educational trading theory."""
+    print("Posting trading theory...")
+
+    # Use day of year for rotation
+    index = get_day_of_year_index()
+    theory = get_theory_by_index(index)
+
+    msg = f"""
+📚 <b>Trading Theory</b>
+
+{theory['emoji']} <b>{theory['topic']}</b>
+
+<b>What is it?</b>
+{theory['what']}
+
+<b>How to use it:</b>
+{theory['how']}
+
+💡 <b>Pro Tip:</b>
+{theory['tip']}
+
+Knowledge is power! 🎯
+
+#SP500 #TradingEducation #LearnToTrade #TechnicalAnalysis
+"""
+    return send_telegram(msg)
+
+
+def post_historical_pattern():
+    """Post historical market event."""
+    print("Posting historical pattern...")
+
+    # Try to get event matching today's date, or random
+    event = get_history_for_today()
+
+    msg = f"""
+📜 <b>On This Day in Market History...</b>
+
+📅 <b>{event['date']}, {event['year']}: {event['title']}</b>
+
+<b>What happened:</b>
+{event['description']}
+
+💡 <b>The Lesson:</b>
+{event['lesson']}
+
+History doesn't repeat, but it rhymes! 📈
+
+#SP500 #MarketHistory #Trading #StockMarket #LearnFromHistory
+"""
+    return send_telegram(msg)
+
+
+def post_why_market_moved():
+    """Explain today's market movement."""
+    print("Posting why market moved...")
+
+    data = get_current_data()
+    if not data:
+        return send_telegram("📊 <b>Market Analysis</b>\n\nNo data available.\n\n#SP500")
+
+    change = data['change_pct']
+    rsi = data['rsi']
+    macd_bullish = data['macd_hist'] > 0
+
+    # Determine main reason
+    if abs(change) < 0.2:
+        reason = "Low volatility session. Markets consolidating, waiting for catalysts."
+        outlook = "Watch for breakout in either direction."
+    elif change > 1:
+        if rsi > 65:
+            reason = "Strong buying pressure pushed prices higher. Momentum traders piling in."
+            outlook = "RSI getting elevated - watch for pullback opportunity."
+        else:
+            reason = "Buyers stepped in with conviction. Technical levels held."
+            outlook = "Trend remains bullish. Look for dip-buying opportunities."
+    elif change < -1:
+        if rsi < 35:
+            reason = "Heavy selling pressure. Fear in the market."
+            outlook = "RSI oversold - bounce could be near."
+        else:
+            reason = "Sellers in control. Risk-off sentiment dominating."
+            outlook = "Wait for stabilization before new longs."
+    elif change > 0:
+        reason = "Modest gains. Bulls maintaining control with steady buying."
+        outlook = "Trend intact. Continue monitoring key levels."
+    else:
+        reason = "Slight weakness. Profit-taking or mild selling pressure."
+        outlook = "Normal pullback. Watch support levels."
+
+    change_emoji = "📈" if change > 0 else "📉"
+
+    msg = f"""
+🤔 <b>Why Did the Market Move?</b>
+
+{change_emoji} <b>Today's Move:</b> {change:+.2f}%
+
+<b>The Reason:</b>
+{reason}
+
+<b>What's Next:</b>
+{outlook}
+
+<b>Technical Status:</b>
+• RSI: {rsi:.0f}
+• MACD: {'Bullish' if macd_bullish else 'Bearish'}
+• Trend: {'Up' if data['close'] > data['sma_20'] else 'Down'}
+
+Understanding moves = better trades! 🎯
+
+#SP500 #MarketAnalysis #Trading #TechnicalAnalysis
+"""
+    return send_telegram(msg)
+
+
+def post_simulation_update():
+    """Post trading simulation portfolio update."""
+    print("Posting simulation update...")
+
+    summary = tracker.get_performance_summary()
+    daily_perf = tracker.get_daily_performance()
+
+    # Determine portfolio status
+    total_return = summary['total_return_pct']
+    if total_return > 5:
+        status_emoji = "🔥🔥"
+        status = "ON FIRE!"
+    elif total_return > 2:
+        status_emoji = "🚀"
+        status = "Strong performance!"
+    elif total_return > 0:
+        status_emoji = "📈"
+        status = "In profit!"
+    elif total_return > -2:
+        status_emoji = "📊"
+        status = "Slight drawdown"
+    else:
+        status_emoji = "💪"
+        status = "Building back!"
+
+    # Open positions
+    open_signals = [s for s in tracker.data.get('signals', []) if s.get('status') == 'open']
+    open_count = len(open_signals)
+
+    msg = f"""
+💰 <b>Trading Simulation Update</b>
+
+{status_emoji} <b>{status}</b>
+
+<b>Portfolio:</b>
+💵 Starting: $1,000.00
+💰 Current: ${summary['portfolio_value']:,.2f}
+📊 Return: {total_return:+.2f}%
+
+<b>Today:</b>
+📈 Trades: {daily_perf['trades']}
+✅ Wins: {daily_perf['wins']} | ❌ Losses: {daily_perf['losses']}
+💵 P&L: {daily_perf['total_pnl_pct']:+.2f}%
+
+<b>All-Time Stats:</b>
+📊 Total Trades: {summary['total_trades']}
+🎯 Win Rate: {summary['win_rate']:.1f}%
+🏆 Best Trade: {summary['best_trade']['pnl_pct']:+.2f}% if summary['best_trade'] else 'N/A'
+📉 Worst Trade: {summary['worst_trade']['pnl_pct']:+.2f}% if summary['worst_trade'] else 'N/A'
+
+<b>Open Positions:</b> {open_count}
+
+Track record matters! 📈
+
+#SP500 #TradingSimulation #Performance #Trading
+"""
+    return send_telegram(msg)
+
+
+def post_premarket_movers():
+    """Post pre-market movers and futures."""
+    print("Posting premarket movers...")
+
+    data = get_current_data()
+    econ = get_economic_data()
+
+    if data:
+        sp_change = data['change_pct']
+        sp_emoji = "🟢" if sp_change > 0 else ("🔴" if sp_change < 0 else "⚪")
+    else:
+        sp_change = 0
+        sp_emoji = "⚪"
+
+    vix = econ['vix']
+    if vix < 15:
+        vix_status = "Very Low (Complacency)"
+    elif vix < 20:
+        vix_status = "Low (Calm)"
+    elif vix < 25:
+        vix_status = "Normal"
+    elif vix < 30:
+        vix_status = "Elevated (Caution)"
+    else:
+        vix_status = "High (Fear)"
+
+    msg = f"""
+🌅 <b>Pre-Market Movers</b>
+
+<b>Futures:</b>
+{sp_emoji} S&P 500: {sp_change:+.2f}%
+
+<b>Volatility:</b>
+📊 VIX: {vix:.1f} - {vix_status}
+
+<b>What to Watch:</b>
+• Key earnings releases
+• Economic data at 8:30 AM
+• Fed speakers
+• Sector rotation
+
+Stay alert, stay prepared! 🎯
+
+#SP500 #PreMarket #Futures #Trading
+"""
+    return send_telegram(msg)
+
+
+def post_economic_calendar():
+    """Post today's economic calendar."""
+    print("Posting economic calendar...")
+
+    today = datetime.now().strftime("%A, %B %d")
+
+    # Key events to watch (general template)
+    msg = f"""
+📅 <b>Economic Calendar</b>
+
+📆 {today}
+
+<b>Key Events to Watch:</b>
+
+🕐 <b>Pre-Market:</b>
+• Jobless Claims (if Thursday)
+• GDP / CPI data (if scheduled)
+• Fed speeches
+
+🔔 <b>Market Hours:</b>
+• FOMC announcements
+• Earnings releases
+• Economic indicators
+
+💡 <b>Tip:</b>
+High-impact events can cause volatility spikes. Consider reducing position size around major releases.
+
+Stay informed! 📊
+
+#SP500 #EconomicCalendar #Trading #MarketNews
+"""
+    return send_telegram(msg)
+
+
+def post_sector_watch():
+    """Post sector rotation analysis."""
+    print("Posting sector watch...")
+
+    data = get_current_data()
+
+    if data:
+        trend = "bullish" if data['close'] > data['sma_20'] else "bearish"
+    else:
+        trend = "mixed"
+
+    if trend == "bullish":
+        hot_sectors = "Tech (XLK), Consumer Discretionary (XLY), Communication (XLC)"
+        cold_sectors = "Utilities (XLU), Real Estate (XLRE)"
+        rotation = "Risk-on: Money flowing to growth sectors"
+    else:
+        hot_sectors = "Utilities (XLU), Healthcare (XLV), Consumer Staples (XLP)"
+        cold_sectors = "Tech (XLK), Consumer Discretionary (XLY)"
+        rotation = "Risk-off: Money flowing to defensive sectors"
+
+    msg = f"""
+🔄 <b>Sector Watch</b>
+
+<b>Market Trend:</b> {trend.upper()}
+
+🔥 <b>Hot Sectors:</b>
+{hot_sectors}
+
+❄️ <b>Cold Sectors:</b>
+{cold_sectors}
+
+📊 <b>Rotation Theme:</b>
+{rotation}
+
+💡 <b>Strategy:</b>
+Follow the money! Trade with sector momentum.
+
+#SP500 #SectorRotation #Trading #StockMarket
+"""
+    return send_telegram(msg)
+
+
+def post_midday_recap():
+    """Post midday market recap."""
+    print("Posting midday recap...")
+
+    data = get_current_data()
+    if not data:
+        return send_telegram("📊 <b>Midday Recap</b>\n\nNo data available.\n\n#SP500")
+
+    change_emoji = "📈" if data['change_pct'] > 0 else "📉"
+
+    # Morning session analysis
+    if data['change_pct'] > 0.5:
+        session = "Strong morning! Bulls in control."
+    elif data['change_pct'] < -0.5:
+        session = "Weak morning. Bears pushing lower."
+    else:
+        session = "Choppy morning. No clear direction yet."
+
+    msg = f"""
+🕐 <b>Midday Recap</b>
+
+{change_emoji} <b>S&P 500:</b> ${data['close']:,.0f} ({data['change_pct']:+.2f}%)
+
+<b>Session Range:</b>
+📈 High: ${data['high']:,.0f}
+📉 Low: ${data['low']:,.0f}
+
+<b>Morning Takeaway:</b>
+{session}
+
+<b>Technical Status:</b>
+• RSI: {data['rsi']:.0f}
+• MACD: {'Bullish' if data['macd_hist'] > 0 else 'Bearish'}
+
+<b>Afternoon Watch:</b>
+Key level: ${data['close']:,.0f}
+Break above = bullish continuation
+Break below = afternoon weakness
+
+Stay focused! 🎯
+
+#SP500 #MiddayRecap #Trading #MarketUpdate
+"""
+    return send_telegram(msg)
+
+
+def post_power_hour():
+    """Post power hour alert."""
+    print("Posting power hour...")
+
+    data = get_current_data()
+    if not data:
+        return send_telegram("⚡ <b>Power Hour</b>\n\nLast hour of trading!\n\n#SP500")
+
+    # Determine power hour bias
+    if data['change_pct'] > 0.3 and data['rsi'] < 70:
+        bias = "🟢 Bullish momentum into close likely"
+    elif data['change_pct'] < -0.3 and data['rsi'] > 30:
+        bias = "🔴 Selling pressure may continue"
+    else:
+        bias = "🟡 Could go either way - stay nimble"
+
+    msg = f"""
+⚡ <b>POWER HOUR</b> ⚡
+
+Last hour of trading!
+
+<b>Current Status:</b>
+💵 S&P 500: ${data['close']:,.0f}
+📊 Day Change: {data['change_pct']:+.2f}%
+📈 RSI: {data['rsi']:.0f}
+
+<b>Power Hour Bias:</b>
+{bias}
+
+<b>Watch For:</b>
+• Institutional repositioning
+• End-of-day momentum
+• Volume spikes
+
+This is when big moves happen! 🔥
+
+#SP500 #PowerHour #Trading #MarketClose
+"""
+    return send_telegram(msg)
+
+
+def post_tomorrow_preview():
+    """Post preview of tomorrow's trading."""
+    print("Posting tomorrow preview...")
+
+    data = get_current_data()
+
+    if data:
+        close = data['close']
+        rsi = data['rsi']
+        trend = "bullish" if data['close'] > data['sma_20'] else "bearish"
+
+        if rsi < 35:
+            outlook = "Oversold conditions - watch for bounce"
+        elif rsi > 65:
+            outlook = "Overbought - potential pullback"
+        elif trend == "bullish":
+            outlook = "Trend is up - look for buying opportunities"
+        else:
+            outlook = "Trend is down - be cautious with longs"
+    else:
+        close = 0
+        outlook = "Check charts before market open"
+
+    msg = f"""
+🔮 <b>Tomorrow Preview</b>
+
+<b>Key Levels to Watch:</b>
+• Resistance: ${close * 1.01:,.0f}
+• Support: ${close * 0.99:,.0f}
+• Pivot: ${close:,.0f}
+
+<b>Technical Outlook:</b>
+{outlook}
+
+<b>Tomorrow's Checklist:</b>
+✅ Check pre-market futures
+✅ Review overnight news
+✅ Identify key levels
+✅ Set alerts
+✅ Have a plan before open
+
+Preparation = Success! 📈
+
+#SP500 #TomorrowPreview #Trading #Preparation
+"""
+    return send_telegram(msg)
+
+
+def post_trading_tip():
+    """Post quick trading tip."""
+    print("Posting trading tip...")
+
+    # Rotate through tips
+    tips = [
+        ("🎯 Set Your Stop Loss FIRST", "Before entering any trade, know exactly where you'll exit if wrong. This protects your capital from big losses."),
+        ("⏰ Best Trading Hours", "The first hour (9:30-10:30) and last hour (3:00-4:00) have the most volume and movement. Trade when the market is active!"),
+        ("📊 Trade the Trend", "The trend is your friend! Don't fight it. If price is above the 20 SMA, favor longs. Below? Favor shorts."),
+        ("💰 Risk Management Rule", "Never risk more than 1-2% of your account on a single trade. This way, even a losing streak won't wipe you out."),
+        ("🧘 Patience Pays", "Not every day is a trading day. Sometimes the best trade is no trade. Wait for high-probability setups."),
+        ("📱 Avoid Overtrading", "Quality over quantity! One good trade beats five mediocre ones. Be selective."),
+        ("📈 Let Winners Run", "Don't rush to take profits on winning trades. Use trailing stops to capture bigger moves."),
+        ("🛑 Cut Losses Quickly", "Small losses are okay. Big losses hurt. If a trade isn't working, exit early and move on."),
+        ("📚 Keep a Trading Journal", "Record every trade: entry, exit, reason, emotion. Review weekly to learn from mistakes."),
+        ("😴 Rest is Important", "Tired traders make bad decisions. Get enough sleep and take breaks from the screens."),
+    ]
+
+    # Use day of year for rotation
+    index = get_day_of_year_index() % len(tips)
+    title, tip = tips[index]
+
+    msg = f"""
+💡 <b>Trading Tip of the Day</b>
+
+{title}
+
+{tip}
+
+Small improvements daily = big results over time! 📈
+
+#SP500 #TradingTip #LearnToTrade #Trading
+"""
+    return send_telegram(msg)
+
+
+def post_opening_analysis():
+    """Post first 15 minutes analysis after open."""
+    print("Posting opening analysis...")
+
+    data = get_current_data()
+    if not data:
+        return send_telegram("📊 <b>Opening Analysis</b>\n\nMarket just opened!\n\n#SP500")
+
+    # Analyze opening action
+    change = data['change_pct']
+
+    if change > 0.5:
+        opening = "🟢 Strong open! Buyers aggressive"
+        action = "Look for pullback entries on longs"
+    elif change < -0.5:
+        opening = "🔴 Weak open! Sellers in control"
+        action = "Wait for stabilization before buying"
+    elif change > 0:
+        opening = "🟢 Positive open, modest gains"
+        action = "Trend continuation possible"
+    else:
+        opening = "🔴 Slightly negative open"
+        action = "Watch for direction confirmation"
+
+    msg = f"""
+🔔 <b>Opening Analysis</b>
+
+First 15 minutes reaction:
+
+{opening}
+
+<b>Price:</b> ${data['close']:,.0f}
+<b>Change:</b> {change:+.2f}%
+
+<b>Action Plan:</b>
+{action}
+
+<b>Key Levels:</b>
+• Resist: ${data['high']:,.0f}
+• Support: ${data['low']:,.0f}
+
+Stay focused! First hour is crucial! ⚡
+
+#SP500 #MarketOpen #Trading #OpeningBell
+"""
+    return send_telegram(msg)
+
+
+def post_volume_alert():
+    """Post unusual volume alert."""
+    print("Posting volume alert...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    msg = f"""
+📊 <b>Volume Analysis</b>
+
+<b>Current Session:</b>
+Volume is {'above' if data['volume'] > 0 else 'below'} average
+
+<b>What Volume Tells Us:</b>
+• High volume + up = Strong buying
+• High volume + down = Strong selling
+• Low volume moves often reverse
+
+<b>Current Price:</b> ${data['close']:,.0f}
+<b>Change:</b> {data['change_pct']:+.2f}%
+
+Volume confirms moves! 📈
+
+#SP500 #VolumeAnalysis #Trading
+"""
+    return send_telegram(msg)
+
+
+def post_trend_check():
+    """Post trend status check."""
+    print("Posting trend check...")
+
+    data = get_current_data()
+    if not data:
+        return False
+
+    above_20 = data['close'] > data['sma_20']
+    above_50 = data['close'] > data['sma_50']
+
+    if above_20 and above_50:
+        trend = "🟢 STRONG UPTREND"
+        status = "Price above both 20 and 50 SMA"
+        bias = "Favor long positions"
+    elif above_20:
+        trend = "🟢 UPTREND"
+        status = "Price above 20 SMA, testing 50"
+        bias = "Cautiously bullish"
+    elif not above_20 and not above_50:
+        trend = "🔴 DOWNTREND"
+        status = "Price below both 20 and 50 SMA"
+        bias = "Avoid longs, consider shorts"
+    else:
+        trend = "🟡 MIXED"
+        status = "Price between key averages"
+        bias = "Wait for clarity"
+
+    msg = f"""
+📈 <b>Trend Check</b>
+
+{trend}
+
+<b>Status:</b>
+{status}
+
+<b>Price:</b> ${data['close']:,.0f}
+<b>20 SMA:</b> ${data['sma_20']:,.0f}
+<b>50 SMA:</b> ${data['sma_50']:,.0f}
+
+<b>Trading Bias:</b>
+{bias}
+
+Trade with the trend! 🎯
+
+#SP500 #TrendAnalysis #Trading #TechnicalAnalysis
+"""
+    return send_telegram(msg)
+
+
+def post_week_ahead():
+    """Post week ahead preview (Monday special)."""
+    print("Posting week ahead...")
+
+    data = get_current_data()
+
+    if data:
+        level = data['close']
+        rsi = data['rsi']
+    else:
+        level = 0
+        rsi = 50
+
+    msg = f"""
+📅 <b>Week Ahead Preview</b>
+
+Happy Monday, traders! Here's what to watch:
+
+<b>Key Level:</b> ${level:,.0f}
+<b>RSI:</b> {rsi:.0f}
+
+<b>This Week's Focus:</b>
+• Economic data releases
+• Earnings reports
+• Fed commentary
+• Technical breakout/breakdown levels
+
+<b>Weekly Strategy:</b>
+1. Define your key levels
+2. Set alerts
+3. Wait for setups
+4. Execute with discipline
+
+Let's make it a great week! 💪
+
+#SP500 #WeekAhead #Trading #MondayMotivation
+"""
+    return send_telegram(msg)
+
+
+def post_position_check():
+    """Post open position status."""
+    print("Posting position check...")
+
+    summary = tracker.get_performance_summary()
+    open_signals = [s for s in tracker.data.get('signals', []) if s.get('status') == 'open']
+
+    if not open_signals:
+        msg = """
+📋 <b>Position Check</b>
+
+No open positions currently.
+
+Waiting for high-quality setups! 🎯
+
+#SP500 #Positions #Trading
+"""
+    else:
+        lines = ["📋 <b>Position Check</b>\n"]
+        lines.append(f"<b>Open Positions:</b> {len(open_signals)}\n")
+
+        for i, signal in enumerate(open_signals[:5], 1):
+            direction = signal['direction']
+            entry = signal['entry_price']
+            tp = signal['take_profit']
+            sl = signal['stop_loss']
+            emoji = "🟢" if direction == "LONG" else "🔴"
+            lines.append(f"{emoji} {direction} @ ${entry:,.0f}")
+            lines.append(f"   TP: ${tp:,.0f} | SL: ${sl:,.0f}\n")
+
+        lines.append(f"<b>Portfolio:</b> ${summary['portfolio_value']:,.2f}")
+        lines.append("\n#SP500 #Positions #Trading")
+        msg = '\n'.join(lines)
+
+    return send_telegram(msg)
+
+
+def post_daily_recap():
+    """Post daily winners/losers recap."""
+    print("Posting daily recap...")
+
+    data = get_current_data()
+    daily_perf = tracker.get_daily_performance()
+
+    if not data:
+        return send_telegram("📊 <b>Daily Recap</b>\n\nMarket closed.\n\n#SP500")
+
+    change_emoji = "📈" if data['change_pct'] > 0 else "📉"
+
+    msg = f"""
+📊 <b>Daily Recap</b>
+
+{change_emoji} <b>S&P 500:</b> {data['change_pct']:+.2f}%
+
+<b>Day's Range:</b>
+High: ${data['high']:,.0f}
+Low: ${data['low']:,.0f}
+Close: ${data['close']:,.0f}
+
+<b>Our Signals Today:</b>
+Total: {daily_perf['trades']}
+Wins: {daily_perf['wins']} ✅
+Losses: {daily_perf['losses']} ❌
+P&L: {daily_perf['total_pnl_pct']:+.2f}%
+
+<b>Key Takeaways:</b>
+• {'Bulls won the day' if data['change_pct'] > 0 else 'Bears took control'}
+• RSI at {data['rsi']:.0f}
+• MACD {'bullish' if data['macd_hist'] > 0 else 'bearish'}
+
+See you tomorrow! 🌙
+
+#SP500 #DailyRecap #Trading #MarketClose
+"""
+    return send_telegram(msg)
+
+
+def post_trading_journal():
+    """Post trading journal entry / lessons learned."""
+    print("Posting trading journal...")
+
+    daily_perf = tracker.get_daily_performance()
+
+    if daily_perf['trades'] == 0:
+        lesson = "No trades today. Sometimes patience is the best strategy."
+        emoji = "🧘"
+    elif daily_perf['win_rate'] >= 70:
+        lesson = "Great day! The setups were clean and we executed well. Stay humble."
+        emoji = "🏆"
+    elif daily_perf['win_rate'] >= 50:
+        lesson = "Decent day. Some winners, some losers. That's trading."
+        emoji = "📊"
+    else:
+        lesson = "Tough day. Review the losses - what could we have done better?"
+        emoji = "📝"
+
+    msg = f"""
+📝 <b>Trading Journal</b>
+
+{emoji} <b>Today's Entry</b>
+
+<b>Performance:</b>
+Trades: {daily_perf['trades']}
+Win Rate: {daily_perf['win_rate']:.0f}%
+P&L: {daily_perf['total_pnl_pct']:+.2f}%
+
+<b>Lesson of the Day:</b>
+{lesson}
+
+<b>Tomorrow's Focus:</b>
+• Stick to the plan
+• Wait for quality setups
+• Manage risk first
+
+Every day is a learning opportunity! 📚
+
+#SP500 #TradingJournal #Trading #LessonsLearned
+"""
+    return send_telegram(msg)
+
+
+def post_after_hours():
+    """Post after-hours update."""
+    print("Posting after hours...")
+
+    data = get_current_data()
+
+    if data:
+        close = data['close']
+        change = data['change_pct']
+    else:
+        close = 0
+        change = 0
+
+    msg = f"""
+🌙 <b>After Hours Update</b>
+
+<b>Regular Close:</b> ${close:,.0f}
+<b>Day Change:</b> {change:+.2f}%
+
+<b>After Hours Activity:</b>
+• Watch for earnings reactions
+• Futures will give direction clues
+• News can move markets overnight
+
+<b>Tomorrow's Prep:</b>
+1. Review today's action
+2. Check key levels
+3. Set morning alerts
+4. Get rest!
+
+Markets never sleep, but you should! 😴
+
+#SP500 #AfterHours #Trading #MarketClose
+"""
+    return send_telegram(msg)
+
+
+# ============================================
 # ML-DRIVEN ANALYSIS POSTS
 # ============================================
 
@@ -1303,10 +2215,19 @@ def post_quick_signal():
 
 COMMANDS = {
     'test': post_test,
+    # Morning Posts
+    'gm': post_good_morning,
+    'good_morning': post_good_morning,
     'morning': post_morning_briefing,
     'morning_briefing': post_morning_briefing,
+    'premarket': post_premarket_movers,
+    'wisdom': post_trading_wisdom,
+    'theory': post_trading_theory,
+    'calendar': post_economic_calendar,
+    # Market Hours Posts
     'open': post_market_open,
     'market_open': post_market_open,
+    'opening': post_opening_analysis,
     'technical': post_technical_analysis,
     'technical_analysis': post_technical_analysis,
     'economic': post_economic_dashboard,
@@ -1316,10 +2237,30 @@ COMMANDS = {
     'signal': post_signal_check,
     'signal_check': post_signal_check,
     'predict': post_signal_check,
+    'midday': post_midday_recap,
+    'history': post_historical_pattern,
+    'why': post_why_market_moved,
+    'sector': post_sector_watch,
+    'trend': post_trend_check,
+    'volume': post_volume_alert,
+    'tip': post_trading_tip,
+    'simulation': post_simulation_update,
+    'positions': post_position_check,
+    # Power Hour / Close
+    'power': post_power_hour,
+    'power_hour': post_power_hour,
     'close': post_market_close,
     'market_close': post_market_close,
+    'recap': post_daily_recap,
+    'journal': post_trading_journal,
+    'after': post_after_hours,
+    'tomorrow': post_tomorrow_preview,
+    'gn': post_good_night,
+    'good_night': post_good_night,
+    # Weekly
     'weekly': post_weekly_report,
     'weekly_report': post_weekly_report,
+    'week_ahead': post_week_ahead,
     # Branding
     'welcome': post_welcome_message,
     'logo': post_logo,
