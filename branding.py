@@ -156,11 +156,12 @@ def get_channel_description() -> str:
 • Economic indicators & market sentiment
 • Performance tracking (starting $1,000)
 
-⏰ Daily Schedule (Mon-Fri):
-• 8:00 AM - Morning Briefing
-• 9:30 AM - Market Open Analysis
-• 12:00 PM - Technical Breakdown
-• 4:00 PM - Market Close Recap
+⏰ Daily Schedule (Mon-Fri)
+🇺🇸 ET | 🇲🇦 Morocco
+• 8:00 AM | 14:00 - Morning Briefing
+• 9:30 AM | 15:30 - Market Open
+• 12:00 PM | 18:00 - Technical Analysis
+• 4:00 PM | 22:00 - Market Close
 
 📈 Our Approach:
 Data-driven signals using RSI, MACD, Bollinger Bands, and more. We explain WHY, not just WHAT.
@@ -197,15 +198,16 @@ Your home for <b>professional S&P 500 analysis</b> and trading signals.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
-⏰ <b>DAILY SCHEDULE (Mon-Fri ET):</b>
+⏰ <b>DAILY SCHEDULE (Mon-Fri)</b>
+🇺🇸 ET | 🇲🇦 Morocco
 
-☀️ 8:00 AM  → Morning Briefing
-🔔 9:30 AM  → Market Open + Chart
-📊 10:30 AM → Sentiment Analysis
-📈 12:00 PM → Technical Analysis
-💹 1:30 PM  → Economic Update
-🔔 4:00 PM  → Market Close Recap
-🏆 Friday   → Weekly Report
+☀️ 8:00 AM | 14:00 → Morning Briefing
+🔔 9:30 AM | 15:30 → Market Open
+📊 10:30 AM | 16:30 → Sentiment
+📈 12:00 PM | 18:00 → Technical Analysis
+💹 1:30 PM | 19:30 → Economic Update
+🔔 4:00 PM | 22:00 → Market Close
+🏆 Friday | Weekly Report
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
