@@ -1,10 +1,34 @@
 {
-  "signals": [],
+  "signals": [
+    {
+      "id": "SIG202512291511160001",
+      "timestamp": "2025-12-29T15:11:16.685362",
+      "direction": "LONG",
+      "ticker": "SPY",
+      "entry_price": 6899.0498046875,
+      "take_profit": 6968.0403027343755,
+      "stop_loss": 6864.554555664063,
+      "confidence": 74.61558532714844,
+      "status": "open",
+      "exit_price": null,
+      "exit_timestamp": null,
+      "pnl_pct": null,
+      "notes": ""
+    }
+  ],
   "portfolio": {
     "initial_capital": 1000,
     "current_value": 1000,
     "cash": 1000,
-    "positions": [],
+    "positions": [
+      {
+        "signal_id": "SIG202512291511160001",
+        "entry_value": 500.0,
+        "shares": 0.07247374843710787,
+        "direction": "LONG",
+        "lot_size": 0.5
+      }
+    ],
     "history": [
       {
         "timestamp": "2025-12-29T00:00:00",
