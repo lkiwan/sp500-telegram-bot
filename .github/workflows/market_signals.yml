@@ -20,11 +20,11 @@ on:
           - technical
           - economic
           - signal
+          - update
           - preclose
           - close
           - after
           - weekly
-          - elite
           - simulation
 
 permissions:
@@ -134,9 +134,19 @@ jobs:
                 echo "cmd=after" >> $GITHUB_OUTPUT
               fi
 
-            # Monitor open positions every hour during market hours
-            elif [ "$HOUR" -ge 15 ] && [ "$HOUR" -lt 21 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
-              echo "cmd=monitor" >> $GITHUB_OUTPUT
+            # Hourly signal updates during market hours (on the hour, not on key post times)
+            # 11:00 AM ET = 16:00 UTC, 1:00 PM ET = 18:00 UTC, 3:00 PM ET = 20:00 UTC
+            elif [ "$HOUR" -eq 16 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 11:00 AM ET - Hourly Update
+              echo "cmd=update" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 18 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 1:00 PM ET - Hourly Update
+              echo "cmd=update" >> $GITHUB_OUTPUT
+
+            elif [ "$HOUR" -eq 20 ] && [ "$MIN" -ge 0 ] && [ "$MIN" -lt 5 ]; then
+              # 3:00 PM ET - Hourly Update
+              echo "cmd=update" >> $GITHUB_OUTPUT
 
             else
               # Skip - not a scheduled time

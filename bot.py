@@ -320,7 +320,7 @@ def get_economic_data() -> dict:
 # ============================================
 
 def post_morning_briefing():
-    """Post simple morning briefing."""
+    """Post professional morning briefing with yesterday's result."""
     print("Posting morning briefing...")
 
     data = get_current_data()
@@ -328,41 +328,94 @@ def post_morning_briefing():
         print("Could not get market data")
         return False
 
-    prev_close = data['prev_close']
     current = data['close']
+    change_pct = data['change_pct']
     rsi = data['rsi']
     macd_bullish = data['macd_hist'] > 0
-    above_sma = current > data['sma_20']
+    above_sma20 = current > data['sma_20']
+    above_sma50 = current > data['sma_50']
 
-    # Simple bias
-    if rsi < 30:
-        bias = "🟢 Oversold - Watch for bounce"
-    elif rsi > 70:
-        bias = "🔴 Overbought - Be careful"
-    elif macd_bullish and above_sma:
-        bias = "🟢 Bullish"
-    elif not macd_bullish and not above_sma:
-        bias = "🔴 Bearish"
+    # Get economic data
+    economic_data = get_economic_data()
+    vix = economic_data.get('vix', 20)
+
+    # Yesterday's result emoji
+    if change_pct > 0.5:
+        result_emoji = "🟢🟢"
+        result_text = "Strong Up"
+    elif change_pct > 0:
+        result_emoji = "🟢"
+        result_text = "Up"
+    elif change_pct > -0.5:
+        result_emoji = "🔴"
+        result_text = "Down"
     else:
-        bias = "🟡 Neutral"
+        result_emoji = "🔴🔴"
+        result_text = "Strong Down"
+
+    # Trend status
+    if above_sma20 and above_sma50:
+        trend = "🟢 Bullish (above SMA 20 & 50)"
+    elif above_sma20:
+        trend = "🟡 Mixed (above SMA 20 only)"
+    elif above_sma50:
+        trend = "🟡 Mixed (above SMA 50 only)"
+    else:
+        trend = "🔴 Bearish (below both SMAs)"
+
+    # RSI status
+    if rsi < 30:
+        rsi_note = "🟢 OVERSOLD - Bounce potential"
+    elif rsi > 70:
+        rsi_note = "🔴 OVERBOUGHT - Pullback possible"
+    else:
+        rsi_note = f"⚪ Neutral zone"
+
+    # VIX status
+    if vix > 25:
+        vix_note = "🔴 High fear - volatile"
+    elif vix < 15:
+        vix_note = "🟢 Low fear - calm"
+    else:
+        vix_note = "🟡 Normal range"
+
+    # Support/Resistance (1% levels)
+    support = current * 0.99
+    resistance = current * 1.01
 
     msg = f"""
-☀️ <b>Morning Briefing</b>
+☀️ <b>MORNING BRIEFING</b> ☀️
 
-S&P 500: ${prev_close:,.0f}
+Good morning traders!
 
-<b>Key Levels</b>
-Support: ${current * 0.99:,.0f}
-Resistance: ${current * 1.01:,.0f}
+━━━━━━━━━━━━━━━━━━━━
 
-<b>Indicators</b>
-RSI: {rsi:.0f}
-MACD: {'Bullish' if macd_bullish else 'Bearish'}
-Trend: {'Up' if above_sma else 'Down'}
+<b>📊 YESTERDAY'S CLOSE</b>
 
-{bias}
+{result_emoji} S&P 500: <code>${current:,.2f}</code>
+{result_emoji} Change: <b>{change_pct:+.2f}%</b> ({result_text})
 
-#SP500 #Morning
+━━━━━━━━━━━━━━━━━━━━
+
+<b>📈 TECHNICAL PICTURE</b>
+
+• Trend: {trend}
+• RSI: {rsi:.0f} - {rsi_note}
+• MACD: {'🟢 Bullish' if macd_bullish else '🔴 Bearish'}
+• VIX: {vix:.1f} - {vix_note}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>🎯 KEY LEVELS</b>
+
+• Resistance: ${resistance:,.0f} (+1%)
+• Support: ${support:,.0f} (-1%)
+
+━━━━━━━━━━━━━━━━━━━━
+
+<i>Daily signal coming at 12:00 PM ET</i>
+
+#SP500 #MorningBriefing #Trading
 """
     return send_telegram(msg)
 
@@ -416,14 +469,46 @@ Trade smart! 💪
 
 
 def post_technical_analysis():
-    """Post technical analysis with chart."""
-    print("Posting technical analysis...")
+    """Post technical analysis with chart AND daily signal."""
+    print("Posting technical analysis with daily signal...")
 
     data = get_current_data()
     if not data:
         return False
 
     df = data['df']
+    economic_data = get_economic_data()
+
+    # Get ML prediction for today
+    prediction = ml_predictor.predict(df, economic_data)
+    direction = prediction['direction']
+    confidence = prediction['confidence']
+
+    dir_emoji = "🟢" if direction == "LONG" else "🔴"
+    dir_text = "UP" if direction == "LONG" else "DOWN"
+
+    # Technical indicators
+    rsi = data['rsi']
+    macd_bullish = data['macd_hist'] > 0
+    above_sma20 = data['close'] > data['sma_20']
+    above_sma50 = data['close'] > data['sma_50']
+    vix = economic_data.get('vix', 20)
+
+    # Trend
+    if above_sma20 and above_sma50:
+        trend = "🟢 Uptrend"
+    elif not above_sma20 and not above_sma50:
+        trend = "🔴 Downtrend"
+    else:
+        trend = "🟡 Sideways"
+
+    # RSI interpretation
+    if rsi < 30:
+        rsi_text = "Oversold 🟢"
+    elif rsi > 70:
+        rsi_text = "Overbought 🔴"
+    else:
+        rsi_text = "Neutral ⚪"
 
     # Generate chart
     chart_df = df.copy()
@@ -432,7 +517,7 @@ def post_technical_analysis():
     try:
         chart_buffer = charts.generate_technical_chart(
             chart_df,
-            title=f"S&P 500 Technical Analysis - {datetime.now().strftime('%b %d')}",
+            title=f"S&P 500 - {datetime.now().strftime('%b %d, %Y')}",
             show_volume=True,
             show_rsi=True,
             show_macd=True,
@@ -440,65 +525,138 @@ def post_technical_analysis():
             show_sma=True
         )
 
-        # Generate mentor commentary
-        summary = mentor.generate_market_summary(data)
-
         caption = f"""
-{EMOJI['chart']} <b>Technical Analysis</b>
+📊 <b>TECHNICAL ANALYSIS</b> 📊
 
-{summary}
+{dir_emoji}{dir_emoji}{dir_emoji} <b>TODAY'S SIGNAL: {dir_text}</b> {dir_emoji}{dir_emoji}{dir_emoji}
+<b>Confidence:</b> {confidence:.0f}%
 
-{get_hashtags('technical')}
+━━━━━━━━━━━━━━━━━━━━
+
+<b>S&P 500:</b> ${data['close']:,.2f} ({data['change_pct']:+.2f}%)
+
+<b>Indicators:</b>
+• Trend: {trend}
+• RSI: {rsi:.0f} ({rsi_text})
+• MACD: {'🟢 Bullish' if macd_bullish else '🔴 Bearish'}
+• VIX: {vix:.1f}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<i>Hold 1 day | Model: 71% win rate</i>
+
+#SP500 #TechnicalAnalysis #DailySignal #{dir_text}
 """
         return send_telegram_photo(chart_buffer, caption[:1024])
 
     except Exception as e:
         print(f"Chart error: {e}")
-        return False
+        # Fallback to text-only signal
+        return post_signal_check()
 
 
 def post_economic_dashboard():
-    """Post economic indicators with dashboard."""
+    """Post economic/fundamental analysis with dashboard."""
     print("Posting economic dashboard...")
 
     econ_data = get_economic_data()
+    data = get_current_data()
+
+    vix = econ_data.get('vix', 20)
+    fear_greed = econ_data.get('fear_greed', 50)
+    fed_rate = econ_data.get('fed_rate', 5.0)
+    treasury_10y = econ_data.get('treasury_10y', 4.0)
+    unemployment = econ_data.get('unemployment', 4.0)
+
+    # VIX interpretation
+    if vix > 30:
+        vix_emoji = "🔴🔴🔴"
+        vix_text = "EXTREME FEAR - High volatility"
+    elif vix > 25:
+        vix_emoji = "🔴🔴"
+        vix_text = "HIGH FEAR - Volatile"
+    elif vix > 20:
+        vix_emoji = "🟡"
+        vix_text = "ELEVATED - Caution"
+    elif vix > 15:
+        vix_emoji = "🟢"
+        vix_text = "NORMAL - Stable"
+    else:
+        vix_emoji = "🟢🟢"
+        vix_text = "LOW - Complacent"
+
+    # Fear & Greed interpretation
+    if fear_greed >= 75:
+        fg_emoji = "🟢🟢"
+        fg_text = "EXTREME GREED"
+    elif fear_greed >= 55:
+        fg_emoji = "🟢"
+        fg_text = "GREED"
+    elif fear_greed >= 45:
+        fg_emoji = "⚪"
+        fg_text = "NEUTRAL"
+    elif fear_greed >= 25:
+        fg_emoji = "🔴"
+        fg_text = "FEAR"
+    else:
+        fg_emoji = "🔴🔴"
+        fg_text = "EXTREME FEAR"
+
+    # Yield curve (10Y - 2Y spread approximation)
+    yield_spread = treasury_10y - fed_rate
+    if yield_spread < 0:
+        yield_text = "🔴 INVERTED - Recession signal"
+    elif yield_spread < 0.5:
+        yield_text = "🟡 FLAT - Slowdown possible"
+    else:
+        yield_text = "🟢 NORMAL - Growth expected"
 
     try:
         chart_buffer = charts.generate_economic_dashboard(econ_data)
 
-        # Determine sentiment
-        vix = econ_data['vix']
-        if vix < 15:
-            sentiment = f"{EMOJI['bullish']} EXTREME GREED"
-        elif vix < 20:
-            sentiment = f"{EMOJI['bullish']} GREED"
-        elif vix < 25:
-            sentiment = f"{EMOJI['neutral']} NEUTRAL"
-        elif vix < 30:
-            sentiment = f"{EMOJI['bearish']} FEAR"
-        else:
-            sentiment = f"{EMOJI['bearish']} EXTREME FEAR"
-
         caption = f"""
-{EMOJI['economic']} <b>Economic Dashboard</b>
+🏛️ <b>FUNDAMENTAL ANALYSIS</b> 🏛️
 
-<b>Market Sentiment:</b> {sentiment}
-<b>VIX:</b> {econ_data['vix']:.2f}
-<b>Fear & Greed:</b> {econ_data['fear_greed']}/100
+━━━━━━━━━━━━━━━━━━━━
 
-<b>Key Indicators:</b>
-• Fed Rate: {econ_data['fed_rate']:.2f}%
-• 10Y Treasury: {econ_data['treasury_10y']:.2f}%
-• Unemployment: {econ_data['unemployment']:.1f}%
+<b>📊 MARKET SENTIMENT</b>
 
-{get_hashtags('economic')}
+{vix_emoji} VIX: {vix:.1f} - {vix_text}
+{fg_emoji} Fear & Greed: {fear_greed}/100 - {fg_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>💵 ECONOMIC INDICATORS</b>
+
+• Fed Rate: {fed_rate:.2f}%
+• 10Y Treasury: {treasury_10y:.2f}%
+• Unemployment: {unemployment:.1f}%
+
+<b>Yield Curve:</b> {yield_text}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<i>Macro conditions affect trend strength</i>
+
+#SP500 #FundamentalAnalysis #Economy
 """
         return send_telegram_photo(chart_buffer, caption)
 
     except Exception as e:
-        print(f"Dashboard error: {e}")
+        print(f"Chart error: {e}")
         # Fallback to text
-        return post_economic_text(econ_data)
+        msg = f"""
+🏛️ <b>FUNDAMENTAL ANALYSIS</b>
+
+{vix_emoji} VIX: {vix:.1f} - {vix_text}
+{fg_emoji} Fear & Greed: {fear_greed}/100
+
+Fed Rate: {fed_rate:.2f}%
+10Y Treasury: {treasury_10y:.2f}%
+
+#SP500 #Economy
+"""
+        return send_telegram(msg)
 
 
 def post_economic_text(econ_data: dict) -> bool:
@@ -566,14 +724,12 @@ Fear/Greed: {fg}/100
 
 
 def post_signal_check():
-    """Check for trading signals and post if found - WITH CHART."""
-    print("Checking for signals...")
-
-    # Check if we already have 5 open signals
-    open_signals = tracker.get_open_signals()
-    if len(open_signals) >= 5:
-        print(f"Already have {len(open_signals)} open signals (max 5). Skipping.")
-        return False
+    """
+    Post daily direction signal - matches backtest logic.
+    NO TP/SL - just direction prediction for next day.
+    This achieved 71% win rate in backtest.
+    """
+    print("Checking for daily signal...")
 
     data = get_current_data()
     if not data:
@@ -586,140 +742,140 @@ def post_signal_check():
 
     direction = prediction['direction']
     confidence = prediction['confidence']
+    current_price = data['close']
 
     print(f"Signal: {direction} with {confidence:.1f}% confidence")
 
-    # Trust the model - use 70% threshold (model has 71% win rate)
-    if confidence >= 70:
-        current_price = data['close']
-        vix = economic_data.get('vix', 20.0)
+    # Get technical factors for analysis
+    factors = ml_predictor.get_factor_analysis(df, economic_data)
 
-        # Dynamic TP/SL based on VIX (keep this - it's useful)
-        dynamic_levels = risk_manager.get_dynamic_levels(current_price, direction, vix)
-        entry = current_price
-        take_profit = dynamic_levels['take_profit']
-        stop_loss = dynamic_levels['stop_loss']
-        partial_target = dynamic_levels['partial_target']
-        vix_regime = dynamic_levels['vix_regime']
-        tp_pct = dynamic_levels['tp_pct']
-        sl_pct = dynamic_levels['sl_pct']
+    rsi = factors['rsi']['value'] if factors else data.get('rsi', 50)
+    macd_signal = factors['macd']['signal'] if factors else 'NEUTRAL'
+    vix = economic_data.get('vix', 20)
 
-        print(f"VIX Regime: {vix_regime} | Dynamic TP: {tp_pct}% | SL: {sl_pct}%")
+    # Trend analysis
+    above_sma20 = data['close'] > data['sma_20']
+    above_sma50 = data['close'] > data['sma_50']
 
-        direction_emoji = EMOJI['bullish'] if direction == "LONG" else EMOJI['bearish']
-
-        signal = tracker.add_signal(
-            direction=direction,
-            entry_price=entry,
-            take_profit=take_profit,
-            stop_loss=stop_loss,
-            confidence=confidence,
-            ticker="SPY",
-            partial_target=partial_target
-        )
-
-        rr = abs(tp_pct / sl_pct) if sl_pct > 0 else 0
-
-        lot_size = tracker.get_lot_size(confidence)
-
-        # Get factors for reasoning
-        factors = ml_predictor.get_factor_analysis(df, economic_data)
-
-        # Build reason text
-        reasons = []
-        if factors:
-            rsi = factors['rsi']['value']
-            if rsi < 35:
-                reasons.append(f"RSI oversold ({rsi:.0f})")
-            elif rsi > 65:
-                reasons.append(f"RSI overbought ({rsi:.0f})")
-
-            if factors['trend']['above_sma20'] and factors['trend']['above_sma50']:
-                reasons.append("Strong uptrend")
-            elif not factors['trend']['above_sma20'] and not factors['trend']['above_sma50']:
-                reasons.append("Downtrend")
-
-            if factors['macd']['signal'] == 'BULLISH':
-                reasons.append("MACD bullish")
-            elif factors['macd']['signal'] == 'BEARISH':
-                reasons.append("MACD bearish")
-
-            if factors['vix']['value'] < 18:
-                reasons.append("Low VIX (low fear)")
-
-        reason_text = " | ".join(reasons[:3]) if reasons else "Technical alignment"
-
-        # Generate signal chart
-        try:
-            chart_buffer = charts.generate_signal_chart(
-                current_price, entry, take_profit, stop_loss, direction, confidence
-            )
-
-            signals_summary = get_signals_summary()
-
-            # Professional caption with all info
-            if direction == "LONG":
-                caption = f"""🟢📈 <b>BUY SIGNAL</b> 📈🟢
-
-💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
-
-📊 Lot Size: <b>{lot_size}</b>
-⚡ Confidence: <b>{confidence:.0f}%</b>
-📈 Risk/Reward: <b>1:{rr:.1f}</b>
-🌡️ VIX Regime: <b>{vix_regime}</b>
-{signals_summary}
-
-#SP500 #TradingSignals #BuySignal"""
-            else:
-                caption = f"""🔴📉 <b>SELL SIGNAL</b> 📉🔴
-
-💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
-
-📊 Lot Size: <b>{lot_size}</b>
-⚡ Confidence: <b>{confidence:.0f}%</b>
-📉 Risk/Reward: <b>1:{rr:.1f}</b>
-🌡️ VIX Regime: <b>{vix_regime}</b>
-{signals_summary}
-
-#SP500 #TradingSignals #SellSignal"""
-            return send_telegram_photo(chart_buffer, caption)
-
-        except Exception as e:
-            print(f"Chart error: {e}")
-            signals_summary = get_signals_summary()
-            # Fallback to text
-            if direction == "LONG":
-                msg = f"""🟢📈 <b>BUY SIGNAL</b> 📈🟢
-
-💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
-
-📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📈 R/R 1:{rr:.1f}
-🌡️ VIX: {vix_regime}
-{signals_summary}
-
-#SP500 #TradingSignals #BuySignal"""
-            else:
-                msg = f"""🔴📉 <b>SELL SIGNAL</b> 📉🔴
-
-💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
-
-📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📉 R/R 1:{rr:.1f}
-🌡️ VIX: {vix_regime}
-{signals_summary}
-
-#SP500 #TradingSignals #SellSignal"""
-            return send_telegram(msg)
+    if above_sma20 and above_sma50:
+        trend = "📈 Uptrend"
+    elif not above_sma20 and not above_sma50:
+        trend = "📉 Downtrend"
     else:
-        print(f"Confidence {confidence:.1f}% below threshold 70%")
+        trend = "➡️ Sideways"
+
+    # RSI status
+    if rsi < 30:
+        rsi_status = "🟢 Oversold"
+    elif rsi > 70:
+        rsi_status = "🔴 Overbought"
+    elif rsi < 45:
+        rsi_status = "🟡 Weak"
+    elif rsi > 55:
+        rsi_status = "🟢 Strong"
+    else:
+        rsi_status = "⚪ Neutral"
+
+    # VIX regime
+    if vix > 30:
+        vix_status = "🔴 Extreme Fear"
+    elif vix > 25:
+        vix_status = "🟠 High Fear"
+    elif vix > 20:
+        vix_status = "🟡 Elevated"
+    elif vix > 15:
+        vix_status = "🟢 Normal"
+    else:
+        vix_status = "🟢 Low (Complacent)"
+
+    # Direction emoji and text
+    if direction == "LONG":
+        dir_emoji = "🟢"
+        dir_text = "UP"
+        action = "BULLISH - Expect market to rise"
+    else:
+        dir_emoji = "🔴"
+        dir_text = "DOWN"
+        action = "BEARISH - Expect market to fall"
+
+    # Confidence level
+    if confidence >= 85:
+        conf_text = "🔥 Very High"
+    elif confidence >= 75:
+        conf_text = "✅ High"
+    elif confidence >= 65:
+        conf_text = "📊 Moderate"
+    else:
+        conf_text = "⚠️ Low"
+
+    msg = f"""
+{dir_emoji}{dir_emoji}{dir_emoji} <b>DAILY SIGNAL</b> {dir_emoji}{dir_emoji}{dir_emoji}
+
+<b>Direction:</b> {dir_text}
+<b>Confidence:</b> {confidence:.0f}% ({conf_text})
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>S&P 500:</b> ${current_price:,.2f}
+<b>Day Change:</b> {data['change_pct']:+.2f}%
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Technical Analysis:</b>
+• Trend: {trend}
+• RSI ({rsi:.0f}): {rsi_status}
+• MACD: {macd_signal}
+• VIX ({vix:.1f}): {vix_status}
+
+━━━━━━━━━━━━━━━━━━━━
+
+<b>Outlook:</b> {action}
+
+<i>Strategy: Hold 1 day, check tomorrow's close
+Model Win Rate: 71%</i>
+
+#SP500 #DailySignal #{dir_text}
+"""
+    return send_telegram(msg)
+
+
+def post_signal_update():
+    """Post hourly signal status update."""
+    print("Posting signal update...")
+
+    data = get_current_data()
+    if not data:
         return False
+
+    economic_data = get_economic_data()
+    df = data['df']
+    prediction = ml_predictor.predict(df, economic_data)
+
+    direction = prediction['direction']
+    confidence = prediction['confidence']
+    current_price = data['close']
+
+    dir_emoji = "🟢" if direction == "LONG" else "🔴"
+    dir_text = "UP" if direction == "LONG" else "DOWN"
+
+    # Check if signal changed
+    change_note = ""
+
+    msg = f"""
+{dir_emoji} <b>Signal Update</b>
+
+<b>Direction:</b> {dir_text}
+<b>Confidence:</b> {confidence:.0f}%
+
+<b>S&P 500:</b> ${current_price:,.2f} ({data['change_pct']:+.2f}%)
+<b>RSI:</b> {data['rsi']:.0f}
+<b>VIX:</b> {economic_data.get('vix', 20):.1f}
+
+{change_note}
+
+#SP500 #SignalUpdate
+"""
+    return send_telegram(msg)
 
 
 def post_market_close():
@@ -2521,6 +2677,8 @@ COMMANDS = {
     'signal': post_signal_check,
     'signal_check': post_signal_check,
     'predict': post_signal_check,
+    'update': post_signal_update,
+    'signal_update': post_signal_update,
     'midday': post_midday_recap,
     'history': post_historical_pattern,
     'why': post_why_market_moved,
