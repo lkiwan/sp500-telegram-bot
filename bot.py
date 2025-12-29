@@ -569,18 +569,6 @@ def post_signal_check():
     """Check for trading signals and post if found - WITH CHART."""
     print("Checking for signals...")
 
-    # === RISK CHECK 1: Trading Time Filter ===
-    can_trade_time, time_reason = risk_manager.is_good_trading_time()
-    if not can_trade_time:
-        print(f"Bad trading time: {time_reason}")
-        return False
-
-    # === RISK CHECK 2: Daily Risk Limit ===
-    can_trade_daily, daily_reason = risk_manager.can_trade_daily_limit()
-    if not can_trade_daily:
-        print(f"Daily limit reached: {daily_reason}")
-        return False
-
     # Check if we already have 5 open signals
     open_signals = tracker.get_open_signals()
     if len(open_signals) >= 5:
@@ -601,39 +589,12 @@ def post_signal_check():
 
     print(f"Signal: {direction} with {confidence:.1f}% confidence")
 
-    # Require 81% confidence
-    if confidence >= 81:
+    # Trust the model - use 70% threshold (model has 71% win rate)
+    if confidence >= 70:
         current_price = data['close']
         vix = economic_data.get('vix', 20.0)
 
-        # === RISK CHECK 3: VIX Regime Filter ===
-        vix_ok, vix_reason = risk_manager.check_vix_regime(vix)
-        if not vix_ok:
-            print(f"VIX filter: {vix_reason}")
-            return False
-        print(f"VIX check: {vix_reason}")
-
-        # === RISK CHECK 4: Volume Confirmation ===
-        avg_volume = df['volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['volume'].mean()
-        current_volume = data['volume']
-        vol_ok, vol_reason = risk_manager.check_volume_confirmation(current_volume, avg_volume)
-        if not vol_ok:
-            print(f"Volume too low: {vol_reason}")
-            return False
-        print(f"Volume: {vol_reason}")
-
-        # === RISK CHECK 4: Trend Alignment ===
-        daily_trend = "LONG" if data['close'] > data['sma_50'] else "SHORT" if data['close'] < data['sma_50'] else "NEUTRAL"
-        trend_aligned, trend_multiplier, trend_reason = risk_manager.check_trend_alignment(daily_trend, direction)
-        print(f"Trend: {trend_reason}")
-
-        # Reduce confidence if against trend
-        adjusted_confidence = confidence * trend_multiplier
-        if adjusted_confidence < 81:
-            print(f"Adjusted confidence {adjusted_confidence:.1f}% below threshold after trend check")
-            return False
-
-        # === DYNAMIC TP/SL based on VIX ===
+        # Dynamic TP/SL based on VIX (keep this - it's useful)
         dynamic_levels = risk_manager.get_dynamic_levels(current_price, direction, vix)
         entry = current_price
         take_profit = dynamic_levels['take_profit']
@@ -757,7 +718,7 @@ def post_signal_check():
 #SP500 #TradingSignals #SellSignal"""
             return send_telegram(msg)
     else:
-        print(f"Confidence {confidence:.1f}% below threshold 81%")
+        print(f"Confidence {confidence:.1f}% below threshold 70%")
         return False
 
 
@@ -2232,18 +2193,6 @@ def post_high_confidence_alert():
             post_sl_hit(signal)
             print(f"SL HIT posted for signal {signal['id']}")
 
-    # === RISK CHECK 1: Trading Time Filter ===
-    can_trade_time, time_reason = risk_manager.is_good_trading_time()
-    if not can_trade_time:
-        print(f"Bad trading time: {time_reason}")
-        return False
-
-    # === RISK CHECK 2: Daily Risk Limit ===
-    can_trade_daily, daily_reason = risk_manager.can_trade_daily_limit()
-    if not can_trade_daily:
-        print(f"Daily limit reached: {daily_reason}")
-        return False
-
     economic_data = get_economic_data()
     df = data['df']
 
@@ -2272,36 +2221,13 @@ def post_high_confidence_alert():
         print(f"Already have {len(open_signals)} open signals (max 5). Skipping new signal.")
         return False
 
-    if confidence < 81:
-        print(f"Confidence {confidence:.1f}% below elite threshold (81%)")
+    # Trust the model - use 70% threshold (model has 71% win rate)
+    if confidence < 70:
+        print(f"Confidence {confidence:.1f}% below threshold (70%)")
         return False
 
-    # === RISK CHECK 3: VIX Regime Filter ===
+    # Dynamic TP/SL based on VIX (keep this - it's useful)
     vix = economic_data.get('vix', 20.0)
-    vix_ok, vix_reason = risk_manager.check_vix_regime(vix)
-    if not vix_ok:
-        print(f"VIX filter: {vix_reason}")
-        return False
-    print(f"VIX check: {vix_reason}")
-
-    # === RISK CHECK 4: Volume Confirmation ===
-    avg_volume = df['volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['volume'].mean()
-    current_volume = data['volume']
-    vol_ok, vol_reason = risk_manager.check_volume_confirmation(current_volume, avg_volume)
-    if not vol_ok:
-        print(f"Volume too low: {vol_reason}")
-        return False
-
-    # === RISK CHECK 5: Trend Alignment ===
-    daily_trend = "LONG" if data['close'] > data['sma_50'] else "SHORT" if data['close'] < data['sma_50'] else "NEUTRAL"
-    trend_aligned, trend_multiplier, trend_reason = risk_manager.check_trend_alignment(daily_trend, direction)
-
-    adjusted_confidence = confidence * trend_multiplier
-    if adjusted_confidence < 81:
-        print(f"Adjusted confidence {adjusted_confidence:.1f}% below threshold after trend check")
-        return False
-
-    # === DYNAMIC TP/SL based on VIX ===
     dynamic_levels = risk_manager.get_dynamic_levels(current_price, direction, vix)
     entry = current_price
     take_profit = dynamic_levels['take_profit']
