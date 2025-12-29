@@ -99,14 +99,14 @@ jobs:
             echo "cmd=$INPUT_CMD" >> $GITHUB_OUTPUT
           else
             # Auto-determine based on current time (for scheduled runs OR auto command)
-            HOUR=$(date -u +%H)
-            MIN=$(date -u +%M)
+            HOUR=$(date -u +%-H)
+            MIN=$(date -u +%-M)
             DOW=$(date -u +%u)
 
             # Check if this is a 5-minute elite scan (not on :00, :15, :30, :45)
             if [ "$((MIN % 15))" -ne "0" ]; then
               # Elite scan - only during market hours
-              if [ "$HOUR" -ge "14" ] && [ "$HOUR" -le "20" ]; then
+              if [ "$HOUR" -ge 14 ] && [ "$HOUR" -le 20 ]; then
                 echo "cmd=elite" >> $GITHUB_OUTPUT
               else
                 echo "cmd=signal" >> $GITHUB_OUTPUT
@@ -115,100 +115,110 @@ jobs:
               # Main 15-minute posts based on time
 
               # PRE-MARKET (12:00-14:30 UTC = 7:00-9:30 AM ET)
-              if [ "$HOUR" == "12" ]; then
+              if [ "$HOUR" -eq 12 ]; then
                 case "$MIN" in
-                  00) echo "cmd=gm" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=gm" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=wisdom" >> $GITHUB_OUTPUT ;;
                   30)
-                    if [ "$DOW" == "1" ]; then
+                    if [ "$DOW" -eq 1 ]; then
                       echo "cmd=week_ahead" >> $GITHUB_OUTPUT
                     else
                       echo "cmd=earnings" >> $GITHUB_OUTPUT
                     fi ;;
                   45) echo "cmd=premarket" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                 esac
 
-              elif [ "$HOUR" == "13" ]; then
+              elif [ "$HOUR" -eq 13 ]; then
                 case "$MIN" in
-                  00) echo "cmd=morning" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=morning" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=calendar" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=news" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=sector" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                 esac
 
-              elif [ "$HOUR" == "14" ]; then
+              elif [ "$HOUR" -eq 14 ]; then
                 case "$MIN" in
-                  00) echo "cmd=theory" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=theory" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=technical" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=open" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=opening" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                 esac
 
               # MARKET HOURS (15:00-17:00 UTC = 10:00-12:00 PM ET)
-              elif [ "$HOUR" == "15" ]; then
+              elif [ "$HOUR" -eq 15 ]; then
                 case "$MIN" in
-                  00) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=momentum" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=sentiment" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=trend" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
                 esac
 
-              elif [ "$HOUR" == "16" ]; then
+              elif [ "$HOUR" -eq 16 ]; then
                 case "$MIN" in
-                  00) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=history" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=risk" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=tip" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
                 esac
 
               # MIDDAY (17:00-19:00 UTC = 12:00-2:00 PM ET)
-              elif [ "$HOUR" == "17" ]; then
+              elif [ "$HOUR" -eq 17 ]; then
                 case "$MIN" in
-                  00) echo "cmd=midday" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=midday" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=theory" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=news" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=why" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
                 esac
 
-              elif [ "$HOUR" == "18" ]; then
+              elif [ "$HOUR" -eq 18 ]; then
                 case "$MIN" in
-                  00) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=factors" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=economic" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=simulation" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
                 esac
 
               # AFTERNOON (19:00-20:00 UTC = 2:00-3:00 PM ET)
-              elif [ "$HOUR" == "19" ]; then
+              elif [ "$HOUR" -eq 19 ]; then
                 case "$MIN" in
-                  00) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=volume" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=trend" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=wisdom" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
                 esac
 
               # POWER HOUR (20:00-21:00 UTC = 3:00-4:00 PM ET)
-              elif [ "$HOUR" == "20" ]; then
+              elif [ "$HOUR" -eq 20 ]; then
                 case "$MIN" in
-                  00) echo "cmd=power" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=power" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=momentum" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=sentiment" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=positions" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=elite" >> $GITHUB_OUTPUT ;;
                 esac
 
               # CLOSE & AFTER (21:00-23:00 UTC = 4:00-6:00 PM ET)
-              elif [ "$HOUR" == "21" ]; then
+              elif [ "$HOUR" -eq 21 ]; then
                 case "$MIN" in
-                  00) echo "cmd=close" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=close" >> $GITHUB_OUTPUT ;;
                   15) echo "cmd=recap" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=simulation" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=journal" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                 esac
 
-              elif [ "$HOUR" == "22" ]; then
+              elif [ "$HOUR" -eq 22 ]; then
                 case "$MIN" in
-                  00)
-                    if [ "$DOW" == "5" ]; then
+                  0)
+                    if [ "$DOW" -eq 5 ]; then
                       echo "cmd=weekly" >> $GITHUB_OUTPUT
                     else
                       echo "cmd=tomorrow" >> $GITHUB_OUTPUT
@@ -216,11 +226,12 @@ jobs:
                   15) echo "cmd=after" >> $GITHUB_OUTPUT ;;
                   30) echo "cmd=tip" >> $GITHUB_OUTPUT ;;
                   45) echo "cmd=wisdom" >> $GITHUB_OUTPUT ;;
+                  *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                 esac
 
-              elif [ "$HOUR" == "23" ]; then
+              elif [ "$HOUR" -eq 23 ]; then
                 case "$MIN" in
-                  00) echo "cmd=gn" >> $GITHUB_OUTPUT ;;
+                  0) echo "cmd=gn" >> $GITHUB_OUTPUT ;;
                   *) echo "cmd=signal" >> $GITHUB_OUTPUT ;;
                 esac
 
