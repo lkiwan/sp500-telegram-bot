@@ -28,6 +28,7 @@ from content_database import (
     get_encouragement, get_win_phrase, get_loss_phrase,
     TRADING_WISDOM, TRADING_THEORY, HISTORICAL_EVENTS
 )
+from risk_manager import risk_manager
 
 # Configuration from GitHub Secrets
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -568,6 +569,18 @@ def post_signal_check():
     """Check for trading signals and post if found - WITH CHART."""
     print("Checking for signals...")
 
+    # === RISK CHECK 1: Trading Time Filter ===
+    can_trade_time, time_reason = risk_manager.is_good_trading_time()
+    if not can_trade_time:
+        print(f"Bad trading time: {time_reason}")
+        return False
+
+    # === RISK CHECK 2: Daily Risk Limit ===
+    can_trade_daily, daily_reason = risk_manager.can_trade_daily_limit()
+    if not can_trade_daily:
+        print(f"Daily limit reached: {daily_reason}")
+        return False
+
     # Check if we already have 5 open signals
     open_signals = tracker.get_open_signals()
     if len(open_signals) >= 5:
@@ -591,11 +604,39 @@ def post_signal_check():
     # Require 81% confidence
     if confidence >= 81:
         current_price = data['close']
+        vix = economic_data.get('vix', 20.0)
 
-        levels = ml_predictor.get_signal_levels(current_price, direction, confidence)
-        entry = levels['entry']
-        take_profit = levels['take_profit']
-        stop_loss = levels['stop_loss']
+        # === RISK CHECK 3: Volume Confirmation ===
+        avg_volume = df['volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['volume'].mean()
+        current_volume = data['volume']
+        vol_ok, vol_reason = risk_manager.check_volume_confirmation(current_volume, avg_volume)
+        if not vol_ok:
+            print(f"Volume too low: {vol_reason}")
+            return False
+        print(f"Volume: {vol_reason}")
+
+        # === RISK CHECK 4: Trend Alignment ===
+        daily_trend = "LONG" if data['close'] > data['sma_50'] else "SHORT" if data['close'] < data['sma_50'] else "NEUTRAL"
+        trend_aligned, trend_multiplier, trend_reason = risk_manager.check_trend_alignment(daily_trend, direction)
+        print(f"Trend: {trend_reason}")
+
+        # Reduce confidence if against trend
+        adjusted_confidence = confidence * trend_multiplier
+        if adjusted_confidence < 81:
+            print(f"Adjusted confidence {adjusted_confidence:.1f}% below threshold after trend check")
+            return False
+
+        # === DYNAMIC TP/SL based on VIX ===
+        dynamic_levels = risk_manager.get_dynamic_levels(current_price, direction, vix)
+        entry = current_price
+        take_profit = dynamic_levels['take_profit']
+        stop_loss = dynamic_levels['stop_loss']
+        partial_target = dynamic_levels['partial_target']
+        vix_regime = dynamic_levels['vix_regime']
+        tp_pct = dynamic_levels['tp_pct']
+        sl_pct = dynamic_levels['sl_pct']
+
+        print(f"VIX Regime: {vix_regime} | Dynamic TP: {tp_pct}% | SL: {sl_pct}%")
 
         direction_emoji = EMOJI['bullish'] if direction == "LONG" else EMOJI['bearish']
 
@@ -605,11 +646,10 @@ def post_signal_check():
             take_profit=take_profit,
             stop_loss=stop_loss,
             confidence=confidence,
-            ticker="SPY"
+            ticker="SPY",
+            partial_target=partial_target
         )
 
-        tp_pct = ((take_profit - entry) / entry) * 100 if direction == "LONG" else ((entry - take_profit) / entry) * 100
-        sl_pct = abs((stop_loss - entry) / entry) * 100
         rr = abs(tp_pct / sl_pct) if sl_pct > 0 else 0
 
         lot_size = tracker.get_lot_size(confidence)
@@ -654,12 +694,13 @@ def post_signal_check():
                 caption = f"""🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
 💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
 
 📊 Lot Size: <b>{lot_size}</b>
 ⚡ Confidence: <b>{confidence:.0f}%</b>
 📈 Risk/Reward: <b>1:{rr:.1f}</b>
+🌡️ VIX Regime: <b>{vix_regime}</b>
 {signals_summary}
 
 #SP500 #TradingSignals #BuySignal"""
@@ -667,12 +708,13 @@ def post_signal_check():
                 caption = f"""🔴📉 <b>SELL SIGNAL</b> 📉🔴
 
 💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
 
 📊 Lot Size: <b>{lot_size}</b>
 ⚡ Confidence: <b>{confidence:.0f}%</b>
 📉 Risk/Reward: <b>1:{rr:.1f}</b>
+🌡️ VIX Regime: <b>{vix_regime}</b>
 {signals_summary}
 
 #SP500 #TradingSignals #SellSignal"""
@@ -686,10 +728,11 @@ def post_signal_check():
                 msg = f"""🟢📈 <b>BUY SIGNAL</b> 📈🟢
 
 💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
 
 📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📈 R/R 1:{rr:.1f}
+🌡️ VIX: {vix_regime}
 {signals_summary}
 
 #SP500 #TradingSignals #BuySignal"""
@@ -697,10 +740,11 @@ def post_signal_check():
                 msg = f"""🔴📉 <b>SELL SIGNAL</b> 📉🔴
 
 💵 Entry: <code>${entry:,.2f}</code>
-🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.2f}%)
-🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.2f}%)
+🎯 Take Profit: <code>${take_profit:,.2f}</code> (+{tp_pct:.1f}%)
+🛑 Stop Loss: <code>${stop_loss:,.2f}</code> (-{sl_pct:.1f}%)
 
 📊 Lot: {lot_size} | ⚡ {confidence:.0f}% | 📉 R/R 1:{rr:.1f}
+🌡️ VIX: {vix_regime}
 {signals_summary}
 
 #SP500 #TradingSignals #SellSignal"""
@@ -2063,6 +2107,39 @@ def post_ml_quick_scan():
     return post_signal_check()
 
 
+def post_partial_profit_alert(signal: dict, current_price: float):
+    """Post notification when partial profit is taken."""
+    direction_emoji = "📈" if signal['direction'] == "LONG" else "📉"
+    entry = signal['entry_price']
+    partial_target = signal.get('partial_target', current_price)
+
+    if signal['direction'] == "LONG":
+        profit_pct = ((current_price - entry) / entry) * 100
+    else:
+        profit_pct = ((entry - current_price) / entry) * 100
+
+    msg = f"""💰 <b>PARTIAL PROFIT TAKEN</b> 💰
+
+{direction_emoji} <b>{signal['direction']}</b> Signal
+
+📊 50% of position closed!
+
+Entry: ${entry:,.2f}
+Exit (50%): ${current_price:,.2f}
+Profit: +{profit_pct:.2f}%
+
+🛡️ Stop Loss moved to break-even (${entry:,.2f})
+
+✅ Risk eliminated on remaining 50%
+🎯 Letting profits run to final target!
+
+{get_signals_summary()}
+
+#SP500 #PartialProfit #RiskManagement"""
+
+    return send_telegram(msg)
+
+
 def post_breakeven_alert(updated_signals: list, opposite_direction: str, confidence: float):
     """Post notification when stops are moved to break-even."""
     if not updated_signals:
@@ -2099,25 +2176,66 @@ def post_high_confidence_alert():
     """Post ONLY if confidence >= 81% AND less than 5 open signals."""
     print("Checking for high confidence signal...")
 
-    # First, check open signals for TP/SL hits
+    # First, check open signals for TP/SL hits + trailing stops
     print("Monitoring open signals...")
     data = get_current_data()
     if not data:
         return False
 
-    # Check if any open signals hit TP or SL
     current_price = data['close']
+
+    # === Check Trailing Stops + Partial Profits for all open signals ===
+    open_signals = tracker.get_open_signals()
+    for signal in open_signals:
+        entry_price = signal['entry_price']
+        current_sl = signal['stop_loss']
+        direction = signal['direction']
+
+        # Check for partial profit taking first
+        if not signal.get('partial_taken', False):
+            partial_result = tracker.take_partial_profit(signal['id'], current_price)
+            if partial_result:
+                post_partial_profit_alert(partial_result, current_price)
+                print(f"Partial profit taken for {signal['id']}")
+                continue  # Skip trailing stop check this cycle
+
+        # Then check trailing stop
+        new_sl = risk_manager.calculate_trailing_stop(
+            entry_price, current_price, current_sl, direction
+        )
+        if new_sl:
+            tracker.update_signal_sl(signal['id'], new_sl)
+            print(f"Trailing stop updated for {signal['id']}: {current_sl:.2f} → {new_sl:.2f}")
+
+    # Check if any open signals hit TP or SL
     alerts = tracker.check_all_signals(current_price)
     for alert in alerts:
         alert_type = alert['type']
         signal = alert['signal']
-        price = alert['price']
         if alert_type == 'TP_HIT':
+            # Update daily P&L
+            pnl = signal.get('pnl_pct', 0)
+            risk_manager.update_daily_pnl(pnl)
             post_tp_hit(signal)
             print(f"TP HIT posted for signal {signal['id']}")
         elif alert_type == 'SL_HIT':
+            # Update daily P&L
+            pnl = signal.get('pnl_pct', 0)
+            risk_manager.update_daily_pnl(pnl)
             post_sl_hit(signal)
             print(f"SL HIT posted for signal {signal['id']}")
+
+    # === RISK CHECK 1: Trading Time Filter ===
+    can_trade_time, time_reason = risk_manager.is_good_trading_time()
+    if not can_trade_time:
+        print(f"Bad trading time: {time_reason}")
+        return False
+
+    # === RISK CHECK 2: Daily Risk Limit ===
+    can_trade_daily, daily_reason = risk_manager.can_trade_daily_limit()
+    if not can_trade_daily:
+        print(f"Daily limit reached: {daily_reason}")
+        return False
 
     economic_data = get_economic_data()
     df = data['df']
@@ -2151,11 +2269,35 @@ def post_high_confidence_alert():
         print(f"Confidence {confidence:.1f}% below elite threshold (81%)")
         return False
 
-    current_price = data['close']
-    levels = ml_predictor.get_signal_levels(current_price, direction, confidence)
-    entry = levels['entry']
-    take_profit = levels['take_profit']
-    stop_loss = levels['stop_loss']
+    # === RISK CHECK 3: Volume Confirmation ===
+    avg_volume = df['volume'].rolling(20).mean().iloc[-1] if len(df) >= 20 else df['volume'].mean()
+    current_volume = data['volume']
+    vol_ok, vol_reason = risk_manager.check_volume_confirmation(current_volume, avg_volume)
+    if not vol_ok:
+        print(f"Volume too low: {vol_reason}")
+        return False
+
+    # === RISK CHECK 4: Trend Alignment ===
+    daily_trend = "LONG" if data['close'] > data['sma_50'] else "SHORT" if data['close'] < data['sma_50'] else "NEUTRAL"
+    trend_aligned, trend_multiplier, trend_reason = risk_manager.check_trend_alignment(daily_trend, direction)
+
+    adjusted_confidence = confidence * trend_multiplier
+    if adjusted_confidence < 81:
+        print(f"Adjusted confidence {adjusted_confidence:.1f}% below threshold after trend check")
+        return False
+
+    # === DYNAMIC TP/SL based on VIX ===
+    vix = economic_data.get('vix', 20.0)
+    dynamic_levels = risk_manager.get_dynamic_levels(current_price, direction, vix)
+    entry = current_price
+    take_profit = dynamic_levels['take_profit']
+    stop_loss = dynamic_levels['stop_loss']
+    partial_target = dynamic_levels['partial_target']
+    vix_regime = dynamic_levels['vix_regime']
+    tp_pct = dynamic_levels['tp_pct']
+    sl_pct = dynamic_levels['sl_pct']
+
+    print(f"VIX Regime: {vix_regime} | Dynamic TP: {tp_pct}% | SL: {sl_pct}%")
 
     direction_emoji = EMOJI['bullish'] if direction == 'LONG' else EMOJI['bearish']
 
@@ -2165,11 +2307,10 @@ def post_high_confidence_alert():
         take_profit=take_profit,
         stop_loss=stop_loss,
         confidence=confidence,
-        ticker="SPY"
+        ticker="SPY",
+        partial_target=partial_target
     )
 
-    tp_pct = abs((take_profit - entry) / entry) * 100
-    sl_pct = abs((stop_loss - entry) / entry) * 100
     rr = tp_pct / sl_pct if sl_pct > 0 else 0
 
     # Generate signal chart for high confidence
@@ -2180,36 +2321,38 @@ def post_high_confidence_alert():
 
         signals_summary = get_signals_summary()
 
-        caption = f"""🔥 <b>HIGH CONFIDENCE</b> 🔥
+        caption = f"""🔥 <b>ELITE SIGNAL</b> 🔥
 
 {direction_emoji} <b>{direction} SPY</b>
 
-Entry: ${entry:,.0f}
-Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
-Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
+Entry: ${entry:,.2f}
+Target: ${take_profit:,.2f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-Confidence: {confidence:.0f}%
-R/R: 1:{rr:.1f}
+⚡ Confidence: {confidence:.0f}%
+📈 R/R: 1:{rr:.1f}
+🌡️ VIX: {vix_regime}
 {signals_summary}
 
-#SP500 #Signal"""
+#SP500 #EliteSignal"""
         return send_telegram_photo(chart_buffer, caption)
 
     except Exception as e:
         print(f"Chart error: {e}")
         signals_summary = get_signals_summary()
-        msg = f"""🔥 <b>HIGH CONFIDENCE</b> 🔥
+        msg = f"""🔥 <b>ELITE SIGNAL</b> 🔥
 
 {direction_emoji} <b>{direction} SPY</b>
 
-Entry: ${entry:,.0f}
-Target: ${take_profit:,.0f} (+{tp_pct:.1f}%)
-Stop: ${stop_loss:,.0f} (-{sl_pct:.1f}%)
+Entry: ${entry:,.2f}
+Target: ${take_profit:,.2f} (+{tp_pct:.1f}%)
+Stop: ${stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-Confidence: {confidence:.0f}%
+⚡ Confidence: {confidence:.0f}%
+🌡️ VIX: {vix_regime}
 {signals_summary}
 
-#SP500 #Signal"""
+#SP500 #EliteSignal"""
         return send_telegram(msg)
 
 

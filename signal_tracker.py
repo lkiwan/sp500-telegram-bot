@@ -140,7 +140,8 @@ class SignalTracker:
 
     def add_signal(self, direction: str, entry_price: float,
                    take_profit: float, stop_loss: float,
-                   confidence: float, ticker: str = "SPY") -> Signal:
+                   confidence: float, ticker: str = "SPY",
+                   partial_target: float = None) -> Signal:
         """
         Add a new signal and update portfolio.
 
@@ -151,6 +152,7 @@ class SignalTracker:
             stop_loss: Stop loss price
             confidence: Confidence percentage (0-100)
             ticker: Ticker symbol
+            partial_target: First target for partial profit (50%)
 
         Returns:
             Created Signal object
@@ -167,7 +169,13 @@ class SignalTracker:
             status=SignalStatus.OPEN.value
         )
 
-        self.data['signals'].append(asdict(signal))
+        signal_dict = asdict(signal)
+        # Add partial target if provided
+        if partial_target:
+            signal_dict['partial_target'] = partial_target
+            signal_dict['partial_taken'] = False
+
+        self.data['signals'].append(signal_dict)
 
         # Calculate position size based on confidence (dynamic lot sizing)
         lot_size = self.get_lot_size(confidence)
@@ -392,6 +400,89 @@ class SignalTracker:
         return [s for s in self.data['signals']
                 if s['status'] == SignalStatus.OPEN.value
                 and s['direction'] == direction.upper()]
+
+    def update_signal_sl(self, signal_id: str, new_sl: float) -> bool:
+        """
+        Update the stop loss for a signal (trailing stop).
+
+        Args:
+            signal_id: Signal ID to update
+            new_sl: New stop loss price
+
+        Returns:
+            True if updated, False otherwise
+        """
+        for signal in self.data['signals']:
+            if signal['id'] == signal_id and signal['status'] == SignalStatus.OPEN.value:
+                old_sl = signal['stop_loss']
+                signal['stop_loss'] = new_sl
+                signal['trailing_active'] = True
+                if 'notes' not in signal or not signal['notes']:
+                    signal['notes'] = f"Trailing SL: ${old_sl:.2f} → ${new_sl:.2f}"
+                else:
+                    signal['notes'] += f" | Trailing: ${new_sl:.2f}"
+                self.save_data()
+                return True
+        return False
+
+    def take_partial_profit(self, signal_id: str, current_price: float) -> Optional[Dict]:
+        """
+        Take partial profit (50%) when first target is hit.
+
+        Args:
+            signal_id: Signal ID
+            current_price: Current price that hit partial target
+
+        Returns:
+            Updated signal dict or None
+        """
+        for signal in self.data['signals']:
+            if signal['id'] == signal_id and signal['status'] == SignalStatus.OPEN.value:
+                if signal.get('partial_taken', False):
+                    return None  # Already taken partial
+
+                partial_target = signal.get('partial_target')
+                if not partial_target:
+                    return None
+
+                direction = signal['direction']
+                hit_partial = False
+
+                if direction == "LONG":
+                    hit_partial = current_price >= partial_target
+                else:  # SHORT
+                    hit_partial = current_price <= partial_target
+
+                if hit_partial:
+                    signal['partial_taken'] = True
+                    entry = signal['entry_price']
+
+                    # Move SL to break-even after partial profit
+                    signal['stop_loss'] = entry
+                    signal['notes'] = f"Partial profit taken @ ${current_price:.2f}, SL moved to break-even"
+
+                    # Update portfolio - reduce position by 50%
+                    for pos in self.data['portfolio']['positions']:
+                        if pos['signal_id'] == signal_id:
+                            # Realize 50% of position
+                            half_value = pos['entry_value'] / 2
+                            if direction == "LONG":
+                                pnl_pct = ((current_price - entry) / entry) * 100
+                            else:
+                                pnl_pct = ((entry - current_price) / entry) * 100
+
+                            realized_profit = half_value * (pnl_pct / 100)
+                            self.data['portfolio']['cash'] += half_value + realized_profit
+
+                            # Reduce position
+                            pos['entry_value'] = half_value
+                            pos['shares'] = pos['shares'] / 2
+                            break
+
+                    self.save_data()
+                    return signal
+
+        return None
 
     def _update_stats(self, signal: Dict):
         """Update performance statistics."""
