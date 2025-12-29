@@ -728,7 +728,26 @@ def prepare_backtest_data(days: int = 365, use_ml_model: bool = True) -> Tuple[p
 
     # Prepare market data
     data.columns = [c.lower() for c in data.columns]
-    data['vix'] = vix_data['Close'] if not vix_data.empty else 20.0
+
+    # Fix timezone alignment for VIX data
+    if not vix_data.empty:
+        # Normalize both indices to date only (remove time and timezone)
+        data_dates = data.index.normalize().tz_localize(None)
+        vix_dates = vix_data.index.normalize().tz_localize(None)
+
+        # Create VIX series with normalized dates
+        vix_series = pd.Series(vix_data['Close'].values, index=vix_dates)
+
+        # Map VIX values to S&P data by date
+        data['vix'] = data_dates.map(lambda d: vix_series.get(d, 20.0))
+
+        # Fill any remaining NaN with forward fill then default
+        data['vix'] = data['vix'].ffill().fillna(20.0)
+
+        print(f"VIX data merged: {(data['vix'] != 20.0).sum()}/{len(data)} days with real VIX")
+    else:
+        data['vix'] = 20.0
+        print("WARNING: No VIX data available, using default 20.0")
     data['sma50'] = data['close'].rolling(50).mean()
     data['sma20'] = data['close'].rolling(20).mean()
     data['avg_volume'] = data['volume'].rolling(20).mean()
