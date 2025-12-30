@@ -15,17 +15,17 @@
       "direction": "UP",
       "confidence": 84.06477355957031,
       "entry_price": 6906.7998046875,
-      "close_price": null,
-      "actual_change": null,
-      "is_correct": null,
-      "result": "PENDING"
+      "close_price": 6896.259765625,
+      "actual_change": -0.1526038014790395,
+      "is_correct": "False",
+      "result": "LOSS"
     }
   ],
   "weeks": [],
   "months": [],
-  "current_streak": -1,
+  "current_streak": -2,
   "best_streak": 0,
-  "worst_streak": -1,
-  "total_signals": 1,
+  "worst_streak": -2,
+  "total_signals": 2,
   "total_wins": 0
 }
