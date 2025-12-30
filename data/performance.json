@@ -9,6 +9,16 @@
       "actual_change": -0.09432530142524943,
       "is_correct": "False",
       "result": "LOSS"
+    },
+    {
+      "date": "2025-12-30",
+      "direction": "UP",
+      "confidence": 84.06477355957031,
+      "entry_price": 6906.7998046875,
+      "close_price": null,
+      "actual_change": null,
+      "is_correct": null,
+      "result": "PENDING"
     }
   ],
   "weeks": [],
