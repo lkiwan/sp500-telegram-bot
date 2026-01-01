@@ -29,6 +29,16 @@
       "actual_change": -0.4728080193283288,
       "is_correct": "False",
       "result": "LOSS"
+    },
+    {
+      "date": "2026-01-01",
+      "direction": "UP",
+      "confidence": 76.79064178466797,
+      "entry_price": 6845.5,
+      "close_price": null,
+      "actual_change": null,
+      "is_correct": null,
+      "result": "PENDING"
     }
   ],
   "weeks": [],
